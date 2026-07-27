@@ -23,5 +23,7 @@ func _draw() -> void:
 		var f := 1.0 - float(i) / float(n)
 		draw_circle(points[i], 3.4 * (0.45 + 0.55 * f), Color(color.r, color.g, color.b, 0.25 + 0.7 * f))
 		i += SPACING
-	if target != null and is_instance_valid(target):
+	# is_instance_valid() alone — a freed Node compares equal to null in
+	# GDScript, so a `!= null` guard would not catch one.
+	if is_instance_valid(target):
 		draw_circle(points[n - 1], 5.0, Color(color.r, color.g, color.b, 0.9))

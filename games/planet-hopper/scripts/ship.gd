@@ -107,8 +107,13 @@ func idle(delta: float) -> void:
 ## far enough past it, which on a long run leaves `_launch_host` dangling. A
 ## freed planet can neither pull nor capture, so dropping the reference is both
 ## safe and correct — and without it, gravity_at() is handed a freed object.
+##
+## is_instance_valid() is the whole test on purpose. Guarding it with a
+## `_launch_host != null` precondition looks natural and is wrong: in GDScript a
+## freed object compares equal to null, so that check skips exactly the case
+## this exists to catch. is_instance_valid(null) is already false.
 func _drop_stale_refs() -> void:
-	if _launch_host != null and not is_instance_valid(_launch_host):
+	if not is_instance_valid(_launch_host):
 		_launch_host = null
 
 

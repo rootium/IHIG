@@ -245,7 +245,9 @@ func _too_close(pos: Vector2, clearance: float) -> bool:
 
 
 func _chunk_holds(key: int, node: Node) -> bool:
-	return node != null and (_chunks[key] as Array).has(node)
+	# is_instance_valid() rather than a null check: a freed Node compares equal
+	# to null in GDScript, and an already-freed planet protects nothing anyway.
+	return is_instance_valid(node) and (_chunks[key] as Array).has(node)
 
 
 func _free_chunk(key: int) -> void:
