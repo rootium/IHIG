@@ -103,9 +103,19 @@ func idle(delta: float) -> void:
 	queue_redraw()
 
 
+## The planet we launched from lives in a chunk that gets culled once we climb
+## far enough past it, which on a long run leaves `_launch_host` dangling. A
+## freed planet can neither pull nor capture, so dropping the reference is both
+## safe and correct — and without it, gravity_at() is handed a freed object.
+func _drop_stale_refs() -> void:
+	if _launch_host != null and not is_instance_valid(_launch_host):
+		_launch_host = null
+
+
 func step(delta: float, world: World) -> void:
 	if state == State.DEAD:
 		return
+	_drop_stale_refs()
 	_lockout = maxf(0.0, _lockout - delta)
 	oxygen -= PH.OXY_DRAIN * delta
 	if oxygen <= 0.0:
@@ -126,6 +136,7 @@ func step(delta: float, world: World) -> void:
 ## frame by Main to draw the path and highlight the target; while orbiting it
 ## previews the launch you would get by tapping right now.
 func predict(world: World) -> Dictionary:
+	_drop_stale_refs()  # callers may reach here before step() on a given frame
 	var p := position
 	var v := vel
 	var exclude := _launch_host
