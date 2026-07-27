@@ -1,0 +1,14 @@
+# Godot's per-project import cache. Regenerated on first open/import.
+.godot/
+
+# Build output.
+/build/
+
+# Signing keys must never be committed.
+*.keystore
+*.jks
+*.p12
+
+# Editors / OS
+*.swp
+.DS_Store
