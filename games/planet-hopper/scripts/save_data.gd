@@ -92,11 +92,14 @@ static func equip(kind: String, id: String) -> void:
 
 
 ## Books the results of a finished run. Returns the credits it awarded.
-static func record_run(distance: int, planets: int) -> int:
-	var earned := int(distance / 60.0) + planets * 12
+##
+## Stars pay the most per unit of effort, so detouring for them is worth it;
+## height pays steadily, so a long careful climb still earns without them.
+static func record_run(height: int, planets: int, stars: int) -> int:
+	var earned := height * 3 + planets * 5 + stars * 10
 	credits += earned
 	total_runs += 1
-	best_distance = maxi(best_distance, distance)
+	best_distance = maxi(best_distance, height)
 	save_game()
 	return earned
 

@@ -10,7 +10,7 @@ games actually want the same thing.
 
 | Game | Directory | Status |
 | --- | --- | --- |
-| [Planet Hopper](games/planet-hopper) | `games/planet-hopper` | Playable (working title) |
+| [Planet Hopper](games/planet-hopper) | `games/planet-hopper` | Playable (working title) — endless one-thumb orbit climber |
 
 ## Building an APK
 

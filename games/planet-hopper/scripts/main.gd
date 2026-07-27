@@ -2,12 +2,15 @@ extends Node2D
 ## Game manager: owns the world, the ship, the camera and the screens, and
 ## arbitrates between them. Everything else in this project is deliberately
 ## unaware of game state.
+##
+## The run climbs upward, so "height" throughout means -position.y.
 
-enum Mode { MENU, PLAY, DEAD }
+enum Mode { MENU, PLAY, PAUSED, DEAD }
 
-const CAM_LEAD := 0.45      ## How far ahead of the ship the camera sits.
-const OUT_OF_LANE := 2.2    ## Multiples of the world band before you are lost.
-const BACKTRACK_LIMIT := 2600.0
+const CAM_LEAD := 0.28      ## Fraction of velocity the camera looks ahead by.
+const CAM_LEAD_MAX := 320.0
+const CAM_RISE := 200.0     ## Ship sits below centre so you can see upward.
+const SIDE_LIMIT := 2.4     ## Multiples of the world band before you are lost.
 
 var mode: Mode = Mode.MENU
 var theme: Dictionary = {}
@@ -15,12 +18,14 @@ var theme: Dictionary = {}
 var world: World
 var ship: Ship
 var stars: Starfield
+var traj: Trajectory
 var cam: Camera2D
 var hud: HUD
 var menus: Menus
 
-var best_x: float = 0.0
+var best_height: float = 0.0
 var planets_visited: int = 0
+var stars_taken: int = 0
 
 var _visited: Dictionary = {}
 
@@ -35,22 +40,28 @@ func _ready() -> void:
 	world = World.new()
 	add_child(world)
 
+	traj = Trajectory.new()
+	traj.z_index = 5
+	add_child(traj)
+
 	ship = Ship.new()
 	ship.died.connect(_on_died)
 	ship.captured.connect(_on_captured)
 	add_child(ship)
 
 	cam = Camera2D.new()
-	cam.zoom = Vector2(0.7, 0.7)
+	cam.zoom = Vector2(0.62, 0.62)
 	add_child(cam)
 	cam.make_current()
 
 	hud = HUD.new()
+	hud.pause_pressed.connect(_pause)
 	add_child(hud)
 
 	menus = Menus.new()
 	menus.play_pressed.connect(start_run)
 	menus.title_pressed.connect(to_title)
+	menus.resume_pressed.connect(_resume)
 	add_child(menus)
 
 	to_title()
@@ -60,6 +71,8 @@ func _notification(what: int) -> void:
 	# Android back button: step out of the run rather than closing the app.
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
 		if mode == Mode.PLAY:
+			_pause()
+		elif mode == Mode.PAUSED:
 			to_title()
 		else:
 			get_tree().quit()
@@ -71,6 +84,7 @@ func to_title() -> void:
 	_prepare()
 	mode = Mode.MENU
 	hud.visible = false
+	traj.visible = false
 	menus.show_title()
 
 
@@ -78,6 +92,23 @@ func start_run() -> void:
 	_prepare()
 	mode = Mode.PLAY
 	hud.visible = true
+	traj.visible = true
+	menus.hide_all()
+
+
+func _pause() -> void:
+	if mode != Mode.PLAY:
+		return
+	mode = Mode.PAUSED
+	ship.thrusting = false
+	ship.has_aim = false
+	menus.show_pause()
+
+
+func _resume() -> void:
+	if mode != Mode.PAUSED:
+		return
+	mode = Mode.PLAY
 	menus.hide_all()
 
 
@@ -87,32 +118,37 @@ func _prepare() -> void:
 	theme = Skins.theme(SaveData.theme_id)
 	RenderingServer.set_default_clear_color(theme.get("bg", PH.C_BG))
 	stars.theme = theme
+	traj.color = theme.get("ring", PH.C_RING)
 
 	world.reset(randi(), theme)
 	world.ensure(0.0)
 	var home: Planet = world.planets[0]
 
 	ship.reset(Skins.ship(SaveData.ship_id))
-	ship.attach(home, home.orbit_radius(), -PI * 0.5, 1.0)
+	ship.attach(home, home.orbit_radius(), PI, 1.0)
 
 	_visited = {home.get_instance_id(): true}
 	planets_visited = 1
-	best_x = 0.0
-	cam.position = ship.position
+	stars_taken = 0
+	best_height = 0.0
+	cam.position = ship.position + Vector2(0, -CAM_RISE)
 	_sync_hud()
 
 
-func distance_km() -> int:
-	return int(best_x / 10.0)
+func height_score() -> int:
+	return int(best_height / 100.0)
 
 
 # --- frame -------------------------------------------------------------------
 
 func _process(delta: float) -> void:
-	if mode == Mode.PLAY:
-		_step_play(delta)
-	else:
-		ship.idle(delta)
+	match mode:
+		Mode.PLAY:
+			_step_play(delta)
+		Mode.MENU:
+			ship.idle(delta)
+		_:
+			pass
 	_update_camera(delta)
 
 	stars.cam_pos = cam.position
@@ -122,15 +158,37 @@ func _process(delta: float) -> void:
 
 
 func _step_play(delta: float) -> void:
-	world.ensure(ship.position.x, ship.host)
+	world.ensure(-ship.position.y, ship.host)
 	ship.step(delta, world)
 	if ship.state == Ship.State.DEAD:
 		return
+	_collect_stars()
 	_check_hazards()
+	if ship.state == Ship.State.DEAD:
+		return
+	_update_trajectory()
 	_check_bounds()
-	_update_hints()
-	best_x = maxf(best_x, ship.position.x)
+	best_height = maxf(best_height, -ship.position.y)
 	_sync_hud()
+
+
+## Runs the same prediction the ship will actually follow, draws it, and marks
+## the planet it lands on so its ring lights up.
+func _update_trajectory() -> void:
+	var pred := ship.predict(world)
+	traj.points = pred.points
+	traj.target = pred.target
+	traj.queue_redraw()
+	for p in world.planets:
+		p.is_target = p == pred.target
+		p.is_host = p == ship.host
+
+
+func _collect_stars() -> void:
+	for s in world.stars.duplicate():
+		if ship.position.distance_to(s.position) < s.radius + PH.SHIP_RADIUS + 10.0:
+			stars_taken += StarPickup.VALUE
+			world.take_star(s)
 
 
 func _check_hazards() -> void:
@@ -150,55 +208,40 @@ func _check_hazards() -> void:
 
 
 func _check_bounds() -> void:
-	if absf(ship.position.y) > PH.WORLD_BAND * OUT_OF_LANE or ship.position.x < best_x - BACKTRACK_LIMIT:
-		ship.die("Lost in deep space")
-
-
-## Highlights the planet you are lined up for, and surfaces the one piece of
-## advice a new player needs: you are coming in too hot to be caught.
-func _update_hints() -> void:
-	for pl in world.planets:
-		pl.capture_ready = false
-
-	var status := ""
-	if ship.state == Ship.State.FLY:
-		var near: Planet = null
-		var best := INF
-		for pl in world.planets:
-			var d := ship.position.distance_to(pl.position) - pl.capture_radius()
-			if d < best:
-				best = d
-				near = pl
-		if near != null and best < 260.0:
-			if ship.speed() <= near.capture_speed():
-				near.capture_ready = true
-			else:
-				status = "TOO FAST — burn backwards to slow down"
-
-	# Drifting out of the lane is fatal and there is nothing to see out there,
-	# so it needs a warning well before the bound is reached.
-	if absf(ship.position.y) > PH.WORLD_BAND * 1.45:
-		status = "OFF COURSE — steer back toward the planets"
-	if ship.oxygen < PH.OXY_MAX * 0.25:
-		status = "OXYGEN LOW — find a green world"
-	elif ship.fuel <= 0.0 and status == "":
-		status = "OUT OF FUEL — you can still break orbit"
-	hud.status = status
-
-
-func _update_camera(delta: float) -> void:
-	var target := ship.position + ship.vel * CAM_LEAD
-	# Exponential smoothing that behaves the same at any frame rate.
-	cam.position = cam.position.lerp(target, 1.0 - pow(0.0015, delta))
-	var want := lerpf(0.72, 0.48, clampf(ship.speed() / 700.0, 0.0, 1.0))
-	cam.zoom = cam.zoom.lerp(Vector2(want, want), 1.0 - pow(0.2, delta))
+	if -ship.position.y < best_height - PH.FALL_LIMIT:
+		ship.die("Fell back into the dark")
+	elif absf(ship.position.x) > PH.WORLD_BAND * SIDE_LIMIT:
+		ship.die("Drifted out of the corridor")
 
 
 func _sync_hud() -> void:
 	hud.oxygen = ship.oxygen / PH.OXY_MAX
 	hud.fuel = ship.fuel / PH.FUEL_MAX
-	hud.distance = distance_km()
+	hud.height = height_score()
+	hud.stars = stars_taken
+	hud.status = _status()
 	hud.refresh()
+
+
+func _status() -> String:
+	if absf(ship.position.x) > PH.WORLD_BAND * 1.5:
+		return "OFF COURSE — steer back toward the planets"
+	if -ship.position.y < best_height - PH.FALL_LIMIT * 0.6:
+		return "FALLING — burn upward"
+	if ship.oxygen < PH.OXY_MAX * 0.25:
+		return "OXYGEN LOW — find a green world"
+	if ship.fuel <= 0.0:
+		return "OUT OF FUEL — you can still break orbit"
+	return ""
+
+
+func _update_camera(delta: float) -> void:
+	var lead := (ship.vel * CAM_LEAD).limit_length(CAM_LEAD_MAX)
+	var target := ship.position + lead + Vector2(0, -CAM_RISE)
+	# Exponential smoothing that behaves the same at any frame rate.
+	cam.position = cam.position.lerp(target, 1.0 - pow(0.0015, delta))
+	var want := lerpf(0.62, 0.5, clampf(ship.speed() / 650.0, 0.0, 1.0))
+	cam.zoom = cam.zoom.lerp(Vector2(want, want), 1.0 - pow(0.2, delta))
 
 
 # --- events ------------------------------------------------------------------
@@ -215,8 +258,9 @@ func _on_died(reason: String) -> void:
 		return
 	mode = Mode.DEAD
 	hud.visible = false
-	var earned := SaveData.record_run(distance_km(), planets_visited)
-	menus.show_game_over(reason, distance_km(), planets_visited, earned)
+	traj.visible = false
+	var earned := SaveData.record_run(height_score(), planets_visited, stars_taken)
+	menus.show_game_over(reason, height_score(), planets_visited, stars_taken, earned)
 
 
 # --- input -------------------------------------------------------------------

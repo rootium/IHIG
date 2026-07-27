@@ -1,22 +1,27 @@
 class_name Planet
 extends Node2D
-## A body you can orbit. Oxygen and fuel planets carry a finite reserve, so
-## camping one is only ever a temporary fix.
+## A body you can orbit. Green planets hold oxygen, amber ones hold fuel, and
+## both carry a finite reserve so camping one is only ever a temporary fix.
 
 enum Kind { OXYGEN, FUEL, BARREN }
 
 var kind: Kind = Kind.BARREN
 var radius: float = 100.0
 var mass: float = 10000.0
-var influence: float = 800.0
+var influence: float = 900.0
 var reserve: float = 0.0
 var spin: float = 0.3
 var theme: Dictionary = {}
-## Set by Main each frame: the ship is inside this planet's capture window and
-## slow enough to be caught. Drives the ring highlight.
-var capture_ready: bool = false
 
-var _features: Array[Vector3] = []  ## x, y, radius of surface blotches.
+## Set by Main each frame when the predicted flight path ends here. Drives the
+## bright ring and tick marks that tell you where you are about to land.
+var is_target: bool = false
+## Set by Main when the ship is in orbit here. Together with is_target this
+## gates the reserve gauge: drawing one on every planet put a second ring around
+## everything and made the screen unreadable.
+var is_host: bool = false
+
+var _features: Array[Vector3] = []
 var _angle: float = 0.0
 
 
@@ -25,16 +30,16 @@ func setup(p_kind: Kind, p_radius: float, rng: RandomNumberGenerator) -> void:
 	radius = p_radius
 	mass = radius * radius
 	influence = radius * PH.INFLUENCE_MULT
-	spin = rng.randf_range(-0.45, 0.45)
+	spin = rng.randf_range(-0.35, 0.35)
 	reserve = 0.0
 	if kind == Kind.OXYGEN:
-		reserve = rng.randf_range(70.0, 130.0)
+		reserve = rng.randf_range(85.0, 140.0)
 	elif kind == Kind.FUEL:
-		reserve = rng.randf_range(65.0, 115.0)
-	for i in rng.randi_range(3, 6):
+		reserve = rng.randf_range(80.0, 130.0)
+	for i in rng.randi_range(2, 4):
 		var a := rng.randf() * TAU
-		var d := rng.randf_range(0.15, 0.62) * radius
-		_features.append(Vector3(cos(a) * d, sin(a) * d, rng.randf_range(0.1, 0.25) * radius))
+		var d := rng.randf_range(0.2, 0.58) * radius
+		_features.append(Vector3(cos(a) * d, sin(a) * d, rng.randf_range(0.09, 0.18) * radius))
 
 
 func base_color() -> Color:
@@ -47,7 +52,6 @@ func base_color() -> Color:
 			return theme.get("barren", PH.C_BARREN)
 
 
-## True while the planet still has something left to give.
 func has_supply() -> bool:
 	return kind != Kind.BARREN and reserve > 0.01
 
@@ -56,16 +60,10 @@ func orbit_radius() -> float:
 	return radius + PH.ORBIT_GAP
 
 
-## Get inside this ring slowly enough and the planet catches you. It is drawn,
-## so the ring on screen is the actual rule and not a decoration.
+## Cross this ring and the planet catches you. It is drawn, so what you see on
+## screen is the actual rule.
 func capture_radius() -> float:
 	return radius * PH.CAPTURE_MULT + PH.CAPTURE_BASE
-
-
-## Heavier worlds can catch a faster ship, which gives big planets a second,
-## subtler advantage over the small ones.
-func capture_speed() -> float:
-	return maxf(PH.CAPTURE_SPEED, sqrt(PH.GRAV * mass / capture_radius()) * 1.6)
 
 
 func _process(delta: float) -> void:
@@ -75,37 +73,57 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var col := base_color()
-	var spent := kind != Kind.BARREN and not has_supply()
-	if spent:
-		col = col.lerp(theme.get("barren", PH.C_BARREN), 0.72)
+	if kind != Kind.BARREN and not has_supply():
+		col = col.lerp(Color(0.42, 0.44, 0.52), 0.62)
 
-	# Atmosphere halo, then body, then surface detail.
-	draw_circle(Vector2.ZERO, radius * 1.1, Color(col.r, col.g, col.b, 0.13))
+	# Flat body with a soft drop shadow and an inset highlight, which is what
+	# gives these a lit, rounded read without any textures.
+	draw_circle(Vector2.ZERO, radius * 1.13, Color(col.r, col.g, col.b, 0.07))
+	draw_circle(Vector2(0, radius * 0.06), radius, Color(0, 0, 0, 0.28))
 	draw_circle(Vector2.ZERO, radius, col)
-	var shade := col.darkened(0.35)
+	draw_circle(Vector2(-radius * 0.16, -radius * 0.16), radius * 0.80, col.lightened(0.10))
 	for f in _features:
-		var p := Vector2(f.x, f.y).rotated(_angle)
-		draw_circle(p, f.z, shade)
-	# Terminator: a crescent of shadow on the far side.
-	draw_arc(Vector2.ZERO, radius * 0.97, -PI * 0.45, PI * 0.55, 28, col.darkened(0.5), radius * 0.09, true)
+		draw_circle(Vector2(f.x, f.y).rotated(_angle), f.z, col.darkened(0.16))
 
-	# The capture ring. It brightens the moment you are slow enough to be
-	# caught, which is the only cue you get for when to stop braking.
-	var ring := Color(col.lightened(0.4), 0.5 if has_supply() else 0.22)
-	var width := 2.0
-	if capture_ready:
-		ring = Color(1.0, 1.0, 1.0, 0.85)
-		width = 3.5
-	draw_arc(Vector2.ZERO, capture_radius(), 0.0, TAU, 72, ring, width, true)
-
-	if kind != Kind.BARREN:
+	_draw_ring()
+	if kind != Kind.BARREN and is_target:
 		_draw_reserve_gauge(col)
 
 
-## A short arc just outside the orbit ring showing what is left in the tank.
+## Three states, and the contrast between them is the whole aiming interface:
+## a dim partial arc for scenery, a bright cyan circle with crosshair ticks for
+## wherever the trajectory lands, and — for the planet you are currently on — a
+## full circle that doubles as the supply gauge. Folding the gauge into the ring
+## keeps the host to a single circle; drawing both put two concentric rings
+## around it that read as noise.
+func _draw_ring() -> void:
+	var r := capture_radius()
+	if is_target:
+		var c: Color = theme.get("ring", PH.C_RING)
+		draw_arc(Vector2.ZERO, r, 0.0, TAU, 80, c, 3.0, true)
+		for i in 4:
+			var d := Vector2.from_angle(PI * 0.25 + i * PI * 0.5)
+			draw_line(d * (r - 9.0), d * (r + 9.0), c, 3.0, true)
+		return
+
+	var idle: Color = theme.get("ring_idle", PH.C_RING_IDLE)
+	if is_host:
+		draw_arc(Vector2.ZERO, r, 0.0, TAU, 72, Color(idle.r, idle.g, idle.b, 0.35), 2.5, true)
+		if has_supply():
+			var frac := clampf(reserve / 140.0, 0.0, 1.0)
+			var col := base_color()
+			draw_arc(Vector2.ZERO, r, -PI * 0.5, -PI * 0.5 + TAU * frac, 64,
+				Color(col.r, col.g, col.b, 0.9), 4.5, true)
+	else:
+		draw_arc(Vector2.ZERO, r, PI * 0.15, PI * 0.85, 40, Color(idle.r, idle.g, idle.b, 0.55), 3.0, true)
+
+
+## How much oxygen or fuel is left here, as an arc just outside the capture
+## ring. Thin and low-contrast on purpose so it reads as an annotation on the
+## ring rather than a second ring.
 func _draw_reserve_gauge(col: Color) -> void:
-	var frac := clampf(reserve / 130.0, 0.0, 1.0)
+	var frac := clampf(reserve / 140.0, 0.0, 1.0)
 	if frac <= 0.0:
 		return
-	var r := capture_radius() + 11.0
-	draw_arc(Vector2.ZERO, r, -PI * 0.5, -PI * 0.5 + TAU * frac, 48, col.lightened(0.25), 4.0, true)
+	var r := capture_radius() + 12.0
+	draw_arc(Vector2.ZERO, r, -PI * 0.5, -PI * 0.5 + TAU * frac, 48, Color(col.r, col.g, col.b, 0.55), 3.0, true)

@@ -24,6 +24,8 @@ window/stretch/aspect="expand"
 
 renderer/rendering_method="mobile"
 renderer/rendering_method.mobile="mobile"
-environment/defaults/default_clear_color=Color(0.027, 0.031, 0.071, 1)
+; Matches the default theme's background so the very first frame does not flash
+; a different colour before Main applies the equipped theme.
+environment/defaults/default_clear_color=Color(0.051, 0.067, 0.157, 1)
 ; Required by Godot's Android exporter, which refuses to export without it.
 textures/vram_compression/import_etc2_astc=true

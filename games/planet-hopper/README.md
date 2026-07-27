@@ -2,11 +2,11 @@
 
 *(working title)*
 
-You fly a spacecraft that hops from orbit to orbit across an endless run of
-star systems. Two meters decide how far you get: **fuel**, which you spend
-steering between planets, and **oxygen**, which drains the whole time and only
-refills in the orbit of a green, oxygen-rich world. Oxygen is the clock — you
-are never allowed to settle anywhere for long.
+You fly a spacecraft that climbs endlessly upward, hopping from orbit to orbit.
+Two meters decide how far you get: **fuel**, which you spend steering between
+planets, and **oxygen**, which drains the whole time and only refills in the
+orbit of a green, oxygen-rich world. Oxygen is the clock — you are never allowed
+to settle anywhere for long.
 
 Built with Godot 4.6. All art is drawn procedurally in `_draw()`, so the project
 carries no image assets beyond the launcher icon.
@@ -25,35 +25,62 @@ One thumb does everything.
 Breaking orbit is free. Fuel only pays for steering and braking in flight, so an
 empty tank strands you but never softlocks you.
 
+## Reading the screen
+
+The game is built around one idea: **you should never have to guess where a
+launch will take you.**
+
+- A **dotted curve** runs from the ship showing exactly where a coast from here
+  ends up. While you sit in orbit it previews the hop you would get by tapping
+  right now, and it sweeps around as you orbit — so choosing the moment to
+  launch is something you can see rather than something you time blind.
+- The planet that curve lands on lights up with a **bright cyan ring and four
+  tick marks**. Everything else shows a dim grey arc.
+- The planet you are **currently orbiting** draws one full ring whose filled
+  portion is its remaining oxygen or fuel.
+
+The preview always shows the *coasting* path, so it stays honest about what
+happens if you let go.
+
 ## The loop
 
 - **Launching** flings you along the tangent of your orbit, so *when* you tap
-  decides *where* you go. This is the core skill.
-- **Capture** happens when you cross a planet's drawn ring slowly enough. The
-  ring turns white the moment you are slow enough to be caught — if it stays
-  dim, you are coming in too hot and need to turn around and retro-burn.
+  decides *where* you go. This is the core skill, and the trajectory curve is
+  what makes it fair.
+- **Capture** happens when you cross a planet's ring. The speed limit for being
+  caught is deliberately generous — aiming is the skill this game asks for,
+  arriving at exactly the right speed is not.
 - **Refuelling** happens passively while in orbit. Green worlds restore oxygen,
-  amber ones restore fuel, grey ones give nothing. Each world holds a finite
-  reserve, shown as an arc outside its ring, so you cannot camp one forever.
+  amber ones restore fuel, purple ones give nothing. Reserves are finite, so you
+  cannot camp one forever.
+- **Stars** are scattered along the routes between planets and are worth more
+  credits than anything else, which is the reason to take the scenic line.
+
+Once you launch, the planet you left stops pulling on you until something else
+catches you. Without that, any hop below escape velocity curves straight back to
+where it started, which reads as the game fighting you.
 
 ## Hazards
+
+Nothing hostile spawns in the first four chunks, so every run opens with room to
+learn the controls.
 
 | | |
 | --- | --- |
 | **Moons** | Circle their planet outside the capture ring, so they threaten your approach and departure rather than the orbit you are parked in. |
-| **Black holes** | Pull far harder and further than their size suggests, and kill inside the event horizon. Their reach is drawn. Good for a slingshot if you are confident. |
-| **Meteorites** | Drift on straight lines, ignoring gravity. Cheap to dodge if you see them coming. |
+| **Black holes** | Pull far harder and further than their size suggests, and kill inside the event horizon. Their reach is drawn. Rare. |
+| **Meteorites** | Drift sideways across the climb, ignoring gravity. Cheap to dodge if you see them coming. |
 
-Drifting far above or below the lane of planets also ends the run — you get a
-warning well before the boundary.
+Falling too far back down, or drifting out of the corridor sideways, also ends
+the run. Both give you a warning first.
 
 ## Credits and the shop
 
-Finishing a run pays out credits based on distance travelled and orbits reached.
-Spend them in the shop on **ships** (six hulls, each with its own silhouette and
-colours) and **worlds** (five palettes that repaint planets, moons, stars and
-the background). Both are purely cosmetic — nothing you buy changes handling or
-difficulty. Progress saves to `user://planet_hopper.save`.
+Finishing a run pays credits for height climbed, orbits reached, and stars
+collected. Spend them on **ships** (six hulls, each with its own silhouette and
+colours) and **worlds** (five palettes that repaint planets, moons, stars,
+background and the target ring). Both are purely cosmetic — nothing you buy
+changes handling or difficulty. Progress saves to `user://planet_hopper.save`.
 
 ## Project layout
 
@@ -61,12 +88,14 @@ difficulty. Progress saves to `user://planet_hopper.save`.
 main.tscn            an empty Node2D; main.gd builds the tree in code
 scripts/config.gd    every tuning number, in one place (class PH)
 scripts/main.gd      game manager: owns world, ship, camera, screens
-scripts/ship.gd      the player — orbit state, free flight, capture
-scripts/world.gd     endless chunked procedural generation
+scripts/ship.gd      the player — orbit state, free flight, capture, prediction
+scripts/trajectory.gd draws the predicted path
+scripts/world.gd     endless chunked procedural generation, gravity queries
 scripts/planet.gd    orbitable body; oxygen / fuel / barren
 scripts/moon.gd  black_hole.gd  meteor.gd   hazards
+scripts/star_pickup.gd  collectible credits
 scripts/starfield.gd parallax background, tiled procedurally
-scripts/hud.gd  menus.gd        in-run readouts / title, game over, shop
+scripts/hud.gd  menus.gd        in-run readouts / title, pause, game over, shop
 scripts/skins.gd  save_data.gd  cosmetics catalogue and persistence
 tests/smoke_test.gd  headless autopilot soak test
 ```
@@ -74,6 +103,9 @@ tests/smoke_test.gd  headless autopilot soak test
 Nothing uses physics bodies or collision shapes. Every object is a circle, so
 collision is a distance check and the whole simulation stays in one readable
 place.
+
+`World.gravity_at()` is the single source of truth for gravity — both actual
+flight and the on-screen preview call it, so the two cannot drift apart.
 
 ## Running it
 
@@ -88,17 +120,24 @@ device, so one input path covers both.
 ### Tests
 
 `tests/smoke_test.gd` flies an autopilot through the real world and ship code,
-restarting on each death, and fails the process on any script error. It is a
-crash/soak test, not an assertion of fun.
+restarting on each death, and fails the process on any script error.
+
+Its autopilot aims the way a player is meant to: it watches `Ship.predict()` and
+launches when the predicted path lands somewhere higher. It never thrusts to
+steer, only to arrest a fall — so its capture count is a direct measurement of
+whether the trajectory preview alone is enough to play the game.
 
 ```sh
-godot --headless --path games/planet-hopper --script tests/smoke_test.gd
-godot --headless --path games/planet-hopper --script tests/smoke_test.gd -- 60000
+godot --headless --fixed-fps 60 --path games/planet-hopper --script tests/smoke_test.gd
+godot --headless --fixed-fps 60 --path games/planet-hopper --script tests/smoke_test.gd -- 200000
 ```
 
 The trailing number is the frame budget at a fixed 60 Hz step (default 12000,
-about 200 s of simulated play). A healthy run reports captures well into the
-dozens and a spread of death causes. It is excluded from exported builds.
+about 200 s of simulated play). It is excluded from exported builds.
+
+Pass `--fixed-fps` or the run takes as long as the play it simulates: without
+it Godot paces its main loop to real time, so the loop sleeps most of every
+frame. With it the same 3000-frame run drops from 21 s to 1.7 s.
 
 ## Tuning
 
@@ -107,3 +146,8 @@ know about: orbital speed is derived from `GRAV` and planet mass, and launch
 speed, capture speed and the size of the gravity wells are all expressed
 relative to it — so changing `GRAV` moves the whole game's feel at once, while
 the individual multipliers can be nudged independently.
+
+Generation is deliberately one planet per chunk: chunk height and the sideways
+step are what set the length of a hop, so a fixed count keeps the climb evenly
+paced. A chunk that came out empty would leave a gap no hop could cross, so the
+placement fallback relaxes spacing rather than skipping a chunk.
