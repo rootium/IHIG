@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="v" cx="50%" cy="42%" r="72%">
+      <stop offset="0%" stop-color="#141c3c"/>
+      <stop offset="100%" stop-color="#06070f"/>
+    </radialGradient>
+    <linearGradient id="e" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#62d8ff"/>
+      <stop offset="100%" stop-color="#a98cff"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#v)"/>
+  <g fill="none" stroke="url(#e)" stroke-linejoin="round" stroke-linecap="round">
+    <!-- outer cube -->
+    <path d="M56 78 L128 44 L200 78 L200 162 L128 196 L56 162 Z" stroke-width="5" opacity="0.95"/>
+    <path d="M56 78 L128 112 L200 78 M128 112 L128 196" stroke-width="4" opacity="0.6"/>
+    <!-- inner cube: the cell of the tesseract further along w -->
+    <path d="M96 106 L128 91 L160 106 L160 145 L128 160 L96 145 Z" stroke-width="3.5" opacity="0.9"/>
+    <path d="M96 106 L128 121 L160 106 M128 121 L128 160" stroke-width="3" opacity="0.55"/>
+    <!-- the eight edges joining the two cells -->
+    <path d="M56 78 L96 106 M128 44 L128 91 M200 78 L160 106 M200 162 L160 145 M128 196 L128 160 M56 162 L96 145"
+          stroke-width="3" opacity="0.75"/>
+  </g>
+  <circle cx="128" cy="126" r="10" fill="#fff4e0" opacity="0.95"/>
+  <circle cx="128" cy="126" r="19" fill="none" stroke="#ffc978" stroke-width="2.5" opacity="0.7"/>
+</svg>
