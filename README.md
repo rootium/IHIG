@@ -11,12 +11,18 @@ games actually want the same thing.
 | Game | Directory | Status |
 | --- | --- | --- |
 | [Planet Hopper](games/planet-hopper) | `games/planet-hopper` | Playable (working title) — endless one-thumb orbit climber |
+| [Lumen](games/lumen) | `games/lumen` | Playable (working title) — one-thumb light-routing puzzle |
+
+The two are deliberately not the same kind of game. Planet Hopper is continuous,
+physical and played on reflex; Lumen is a still board you think at. What they
+share is the shape: portrait, one thumb, no art assets, endless, and a shop full
+of things that change how it looks and nothing about how it plays.
 
 ## Building an APK
 
 ```sh
 tools/build_android.sh                      # defaults to games/planet-hopper
-tools/build_android.sh games/some-other-game
+tools/build_android.sh games/lumen
 ```
 
 The script provisions everything it needs into `~/.ihig-toolchain` (override

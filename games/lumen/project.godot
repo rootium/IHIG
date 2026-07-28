@@ -1,0 +1,31 @@
+; Engine configuration file.
+; Lumen — see README.md in this folder.
+
+config_version=5
+
+[application]
+
+config/name="Lumen"
+config/description="Turn the mirrors. Light every ring in the colour it asks for."
+config/version="0.1.0"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.6", "Mobile")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/handheld/orientation=1
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+; Matches the default palette's background so the very first frame does not
+; flash a different colour before Main applies the equipped one.
+environment/defaults/default_clear_color=Color(0.043, 0.047, 0.086, 1)
+; Required by Godot's Android exporter, which refuses to export without it.
+textures/vram_compression/import_etc2_astc=true
