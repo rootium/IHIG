@@ -1,24 +1,21 @@
 name: Pages
 
-# Publishes the Tessera web build.
+# Keeps the gh-pages branch equal to docs/, which is what GitHub serves.
 #
-# The export itself is committed under docs/ rather than produced here: a Godot
-# web export needs the engine plus 1.3 GB of export templates, and making every
-# deploy re-download them to rebuild bytes that are already known would be
+# The web export itself is committed under docs/ rather than produced here: a
+# Godot web export needs the engine plus 1.3 GB of export templates, and making
+# every deploy re-download them to rebuild bytes that are already known would be
 # slower and far easier to break.
 #
-# There are two ways a repository can serve Pages and this workflow supports
-# both, because which one is in effect is a repository setting rather than
-# something a workflow can decide:
+# There is deliberately no actions/deploy-pages step. That route needs the Pages
+# site to exist, creating one needs a permission the default Actions token does
+# not have, and on a repository where Pages has never been switched on the job
+# can only ever fail — leaving a red cross on every commit and publishing
+# nothing. Serving a branch needs no setting changed and no permission granted.
 #
-#   * Source "GitHub Actions" — the deploy job below publishes docs/ directly.
-#   * Source "Deploy from a branch: gh-pages" — the mirror job keeps that
-#     branch equal to docs/, and GitHub serves it.
-#
-# The deploy job is allowed to fail. Creating the Pages site needs a permission
-# the default Actions token does not have, so on a repository where Pages has
-# never been turned on it cannot succeed, and it should not take the mirror
-# down with it.
+# If you would rather publish through Actions, set Settings → Pages → Source to
+# "GitHub Actions" and add the usual upload-pages-artifact / deploy-pages pair
+# back; docs/ is already exactly the directory to upload.
 
 on:
   push:
@@ -31,8 +28,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -66,33 +61,4 @@ jobs:
                         commit-tree "$tree" $parent \
                         -m "Publish docs/ from ${GITHUB_SHA::12}")"
           git push origin "$commit:refs/heads/gh-pages"
-
-  deploy:
-    name: Deploy via Pages
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure Pages
-        id: configure
-        continue-on-error: true
-        uses: actions/configure-pages@v5
-        with:
-          # Turns Pages on where the token is allowed to. Where it is not, the
-          # mirror job above is what makes the site work.
-          enablement: true
-
-      - name: Upload site
-        if: steps.configure.outcome == 'success'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs
-
-      - name: Deploy
-        id: deployment
-        if: steps.configure.outcome == 'success'
-        uses: actions/deploy-pages@v4
+          echo "gh-pages updated to $commit"

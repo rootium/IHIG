@@ -41,9 +41,17 @@ also `java`, `javac` and `keytool` (a JDK 17+ is fine).
 
 ## The web build and GitHub Pages
 
-`docs/` holds the built web export and is what
-[github.io/IHIG](https://rootium.github.io/IHIG/) serves, via
-`.github/workflows/pages.yml`. The export is committed rather than built in CI:
+`docs/` holds the built web export. `.github/workflows/pages.yml` mirrors it
+onto the `gh-pages` branch on every push, and GitHub serves that branch at
+[rootium.github.io/IHIG](https://rootium.github.io/IHIG/).
+
+**If the site is not up yet**, Pages has never been switched on for this
+repository, and neither a workflow nor this session can switch it on — creating
+a Pages site needs a permission the Actions token is not granted. One click
+fixes it: *Settings → Pages → Source: Deploy from a branch → `gh-pages` / `/`
+(root)*. The branch is already there and already correct.
+
+The export is committed rather than built in CI:
 a Godot web export needs the engine plus 1.3 GB of templates, and making every
 deploy re-download them to rebuild bytes that are already known would be slower
 and much easier to break. To refresh it:
