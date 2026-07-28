@@ -89,6 +89,7 @@ func _lab(text: String, size: int, color: Color, font: Font = null) -> Label:
 	l.add_theme_font_override("font", font if font else _font)
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
 
 
@@ -186,8 +187,10 @@ func _build_hud() -> void:
 	col.add_theme_constant_override("separation", 2)
 	top.add_child(col)
 	_title_lbl = _lab("", 27, Cfg.UI_TEXT)
+	_title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	col.add_child(_title_lbl)
 	_stat_lbl = _lab("", 15, Cfg.UI_DIM, _mono)
+	_stat_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	col.add_child(_stat_lbl)
 
 	_keys_box = HBoxContainer.new()
@@ -410,6 +413,7 @@ func _build_select() -> Control:
 	var v := _column(p)
 	v.add_child(_lab("CHAMBERS", 40, Cfg.UI_TEXT))
 	_select_grid = GridContainer.new()
+	_select_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_select_grid.columns = 8
 	_select_grid.add_theme_constant_override("h_separation", 8)
 	_select_grid.add_theme_constant_override("v_separation", 8)
@@ -449,6 +453,8 @@ func _build_howto() -> Control:
 	var v := _column(p, 10)
 	v.add_child(_lab("FOUR DIRECTIONS, NOT THREE", 34, Cfg.UI_TEXT))
 	var r := _rich(19)
+	r.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	r.custom_minimum_size = Vector2(760, 0)
 	r.text = """
 You are standing in a three dimensional slice of a four dimensional room. The walls you can see are only the walls [i]in this slice[/i].
 
@@ -462,10 +468,10 @@ You are standing in a three dimensional slice of a four dimensional room. The wa
 
 [color=#%s]THE OUTLINES[/color]  Warm outlines are one step ana. Cool outlines are one step kata.
 
-Z undoes. R restarts. Nothing is ever lost — take the room apart.
+Z undoes, without limit. R restarts. Falling out of a chamber only rewinds the step that did it, so nothing is ever lost — take the room apart.
 """ % [Cfg.UI_ACCENT.to_html(false), Cfg.ANA.to_html(false), Cfg.C_GOAL_EDGE.to_html(false),
 		Cfg.UI_ACCENT.to_html(false), Cfg.KATA.to_html(false)]
-	r.custom_minimum_size = Vector2(0, 380)
+	r.custom_minimum_size = Vector2(760, 380)
 	v.add_child(r)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -478,8 +484,10 @@ Z undoes. R restarts. Nothing is ever lost — take the room apart.
 
 func _slider(label: String, value: float, cb: Callable) -> Control:
 	var box := HBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_theme_constant_override("separation", 16)
 	var l := _lab(label, 18, Cfg.UI_TEXT)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	l.custom_minimum_size = Vector2(190, 0)
 	box.add_child(l)
 	var s := HSlider.new()
@@ -505,15 +513,17 @@ func _build_settings() -> Control:
 		Save.set_setting("music", x)
 		if x > 0.001:
 			Audio.music("bed")))
-	v.add_child(_slider("ghost slices", float(Save.setting("ghosts", Cfg.GHOST_DEPTH)) / 5.0, func(x):
-		var d := int(round(x * 5.0))
+	v.add_child(_slider("ghost slices", float(Save.setting("ghosts", Cfg.GHOST_DEPTH)) / 4.0, func(x):
+		var d := int(round(x * 4.0))
 		Save.set_setting("ghosts", d)
 		if game:
 			game.ghost_depth = d))
 
 	var touch_row := HBoxContainer.new()
+	touch_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	touch_row.add_theme_constant_override("separation", 10)
 	var tl := _lab("on-screen controls", 18, Cfg.UI_TEXT)
+	tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	tl.custom_minimum_size = Vector2(190, 0)
 	touch_row.add_child(tl)
 	for mode in ["auto", "on", "off"]:
@@ -522,9 +532,11 @@ func _build_settings() -> Control:
 			_refresh_touch_mode(), Cfg.UI_ACCENT, 15))
 	v.add_child(touch_row)
 
-	v.add_child(_btn("reduce flashing: toggle", func():
+	var flash_btn := _btn("reduce flashing: toggle", func():
 		Save.set_setting("reduce_flash", not Save.setting("reduce_flash", false))
-		toast("flashing %s" % ("reduced" if Save.setting("reduce_flash", false) else "normal")), Cfg.UI_DIM, 16))
+		toast("flashing %s" % ("reduced" if Save.setting("reduce_flash", false) else "normal")), Cfg.UI_DIM, 16)
+	flash_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(flash_btn)
 
 	v.add_child(_spacer(14))
 	var row := HBoxContainer.new()
@@ -558,7 +570,8 @@ func _build_solved() -> Control:
 	var v := _column(p)
 	v.add_child(_lab("SOLVED", 52, Cfg.C_GOAL_EDGE))
 	_solved_body = _rich(21)
-	_solved_body.custom_minimum_size = Vector2(0, 120)
+	_solved_body.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_solved_body.custom_minimum_size = Vector2(560, 120)
 	v.add_child(_solved_body)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -577,6 +590,8 @@ func _build_outro() -> Control:
 	var v := _column(p)
 	v.add_child(_lab("EVERY CHAMBER OPENED", 44, Cfg.C_GOAL_EDGE))
 	var r := _rich(20)
+	r.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	r.custom_minimum_size = Vector2(700, 0)
 	r.text = "You have walked every slice this place has.\n\nThe fourth direction stops being strange somewhere around the twentieth chamber. That is the whole trick — there was never anything to visualise, only somewhere else to step."
 	v.add_child(r)
 	v.add_child(_spacer(16))

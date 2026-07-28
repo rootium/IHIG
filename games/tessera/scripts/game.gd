@@ -451,7 +451,14 @@ func _process(delta: float) -> void:
 			avatar.scale = Vector3.ONE * maxf(0.001, 1.0 - _anim_t / _anim_len)
 			if _anim_t >= _anim_len:
 				avatar.scale = Vector3.ONE
-				restart()
+				# Rewind the step that killed you rather than the whole
+				# chamber. Falling out of a room is a misread of the fourth
+				# dimension, and making the player replay twenty correct moves
+				# to punish one wrong one teaches nothing.
+				if _undo.is_empty():
+					restart()
+				else:
+					undo()
 
 	_update_camera(delta)
 

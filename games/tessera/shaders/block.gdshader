@@ -32,7 +32,7 @@ uniform float dissolve = 0.0;
 // Cutaway: anything standing between the camera and the player is dithered
 // away, so an isometric chamber stays playable when you walk behind a wall.
 uniform vec3 player_pos = vec3(0.0);
-uniform float cut_radius = 0.10;
+uniform float cut_radius = 0.075;
 uniform float cut_feather = 0.075;
 
 varying vec3 v_local;

@@ -29,7 +29,7 @@ const CAM_LERP := 9.0
 const CAM_SPIN_TIME := 0.32
 
 ## How many slices either side of the current one are drawn as ghosts.
-const GHOST_DEPTH := 2
+const GHOST_DEPTH := 1
 
 # --- palette ------------------------------------------------------------------
 

@@ -6,7 +6,7 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never;
 // ana or kata of you. With them the chamber becomes legible: warm outlines are
 // ahead of you along the hidden axis, cool ones behind.
 
-uniform float edge_width = 0.055;
+uniform float edge_width = 0.032;
 uniform vec3 tint : source_color = vec3(0.37, 0.82, 1.0);
 uniform float alpha = 0.6;
 uniform float intensity = 1.0;
@@ -32,7 +32,7 @@ void fragment() {
 	float lo = min(d.x, min(d.y, d.z));
 	float hi = max(d.x, max(d.y, d.z));
 	float mid = d.x + d.y + d.z - lo - hi;
-	float edge = 1.0 - smoothstep(0.0, edge_width * 2.2, mid);
+	float edge = 1.0 - smoothstep(0.0, edge_width * 2.0, mid);
 	if (edge < 0.004) discard;
 
 	float fog = 1.0 - clamp((v_depth - fog_start) / max(fog_end - fog_start, 0.001), 0.0, 1.0);

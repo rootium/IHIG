@@ -16,6 +16,7 @@ var _edges: Array = []
 var _edge_mm: MultiMesh
 var _node_mm: MultiMesh
 var _core: MeshInstance3D
+var _halo: MeshInstance3D
 var _spin := 0.0
 var _tint := Cfg.PLAYER_EDGE
 
@@ -44,6 +45,23 @@ func _ready() -> void:
 	_edge_mm = _layer(cyl, _edges.size(), Cfg.PLAYER_EDGE, 2.1, 1.8)
 
 	_node_mm = _layer(Props.get_mesh("core"), 16, Cfg.PLAYER, 2.6, 1.1)
+
+	var halo_mesh := SphereMesh.new()
+	halo_mesh.radial_segments = 16
+	halo_mesh.rings = 8
+	halo_mesh.radius = 1.0
+	halo_mesh.height = 2.0
+	_halo = MeshInstance3D.new()
+	_halo.mesh = halo_mesh
+	_halo.scale = Vector3.ONE * 0.95
+	var halo_mat := ShaderMaterial.new()
+	halo_mat.shader = preload("res://shaders/halo.gdshader")
+	halo_mat.set_shader_parameter("tint", Cfg.PLAYER_EDGE)
+	halo_mat.render_priority = -1
+	_halo.material_override = halo_mat
+	_halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_halo.extra_cull_margin = 64.0
+	add_child(_halo)
 
 	_core = MeshInstance3D.new()
 	_core.mesh = Props.get_mesh("core")
@@ -82,6 +100,10 @@ func set_tint(c: Color) -> void:
 		var mat = child.material_override
 		if mat is ShaderMaterial:
 			mat.set_shader_parameter("tint", c)
+
+
+func _ready_halo() -> void:
+	pass
 
 
 ## `frame` is the game's live frame, mid-rotation included. `charge` brightens
@@ -134,7 +156,11 @@ func update_body(frame: Array, charge: float) -> void:
 	_core.scale = Vector3.ONE * (1.5 + 0.28 * sin(_spin * 3.4) + charge * 1.4)
 	# Charge brightens the whole body through the materials, since instance
 	# colour is not available (see world.gd).
+	_halo.scale = Vector3.ONE * (0.92 + charge * 0.5)
+	(_halo.material_override as ShaderMaterial).set_shader_parameter("strength", 0.42 + charge * 0.9)
 	for child in get_children():
+		if child == _halo:
+			continue
 		var mat = child.material_override
 		if mat is ShaderMaterial:
 			mat.set_shader_parameter("glow", (2.1 if child != _core else 3.6) + charge * 2.6)

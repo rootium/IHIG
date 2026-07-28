@@ -311,7 +311,7 @@ func _ghost_layer(o: int) -> MultiMeshInstance3D:
 	mat.set_shader_parameter("fog_start", _fog.x)
 	mat.set_shader_parameter("fog_end", _fog.y)
 	mat.set_shader_parameter("tint", Cfg.ANA if o > 0 else Cfg.KATA)
-	mat.set_shader_parameter("alpha", pow(0.44, absf(float(o)) - 1.0) * 0.80)
+	mat.set_shader_parameter("alpha", pow(0.42, absf(float(o)) - 1.0) * 0.34)
 	_ghosts[o] = mmi
 	return mmi
 

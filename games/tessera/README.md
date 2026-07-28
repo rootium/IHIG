@@ -54,8 +54,10 @@ around it.
 - **Turn** — a quarter turn taking a visible axis into the hidden one. It pivots
   on you, so your cell never changes and a turn can never strand you inside a
   wall. The room simply becomes a different room around you.
-- Gravity runs along Y, which is never rotated. Falling out of the chamber
-  restarts it, as does touching a hazard. Undo is unlimited.
+- Gravity runs along Y, which is never rotated. Falling out of a chamber, or
+  touching a hazard, rewinds the step that did it rather than the chamber —
+  making someone replay twenty correct moves to punish one wrong one teaches
+  nothing. Undo is unlimited.
 
 ## Reading four dimensions
 
