@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<meta name="theme-color" content="#06070f">
+	<meta name="description" content="Tessera — a puzzle game in four spatial dimensions. Walls are only walls in the slice you are standing in.">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<title>$GODOT_PROJECT_NAME</title>
+	<style>
+		:root {
+			--void: #06070f;
+			--ink: #dfe8ff;
+			--dim: #7286b5;
+			--accent: #62d8ff;
+			--ana: #ff7bac;
+		}
+		html, body { margin: 0; padding: 0; border: 0; height: 100%; }
+		body {
+			background: var(--void);
+			color: var(--ink);
+			overflow: hidden;
+			touch-action: none;
+			overscroll-behavior: none;
+			font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			-webkit-font-smoothing: antialiased;
+		}
+		#canvas { display: block; width: 100%; height: 100%; }
+		#canvas:focus { outline: none; }
+
+		#boot {
+			position: fixed; inset: 0; z-index: 10;
+			display: flex; flex-direction: column;
+			align-items: center; justify-content: center;
+			gap: 1.1rem;
+			background:
+				radial-gradient(120% 90% at 50% 38%, #141c3c 0%, #06070f 68%);
+			transition: opacity .7s ease;
+		}
+		#boot.gone { opacity: 0; pointer-events: none; }
+
+		#glyph { width: 190px; height: 190px; display: block; }
+
+		#wordmark {
+			font-size: clamp(2rem, 8vw, 3.4rem);
+			letter-spacing: .42em;
+			text-indent: .42em;
+			font-weight: 500;
+			margin: 0;
+		}
+		#tagline {
+			color: var(--accent);
+			font-size: clamp(.78rem, 2.9vw, 1rem);
+			letter-spacing: .06em;
+			margin: -.4rem 0 .3rem;
+			text-align: center;
+			padding: 0 1.2rem;
+		}
+		#bar {
+			width: min(340px, 72vw); height: 3px;
+			background: rgba(114, 134, 181, .22);
+			border-radius: 2px; overflow: hidden;
+		}
+		#fill {
+			height: 100%; width: 0%;
+			background: linear-gradient(90deg, var(--accent), var(--ana));
+			transition: width .25s ease;
+		}
+		#note {
+			color: var(--dim); font-size: .78rem; letter-spacing: .05em;
+			min-height: 1.2em; text-align: center; padding: 0 1.5rem;
+		}
+		#fail {
+			display: none; max-width: 34rem; margin: 0 1.5rem; padding: 1rem 1.2rem;
+			border: 1px solid #9b3943; background: #2a1620; border-radius: .5rem;
+			color: #ffd8de; font-size: .85rem; line-height: 1.5; white-space: pre-wrap;
+		}
+		#keys {
+			position: fixed; left: 0; right: 0; bottom: 1.1rem; z-index: 9;
+			text-align: center; color: var(--dim); font-size: .74rem;
+			letter-spacing: .09em; pointer-events: none;
+			transition: opacity 1s ease;
+		}
+		#keys b { color: var(--accent); font-weight: 600; }
+		#keys.gone { opacity: 0; }
+		@media (max-width: 620px) { #keys { display: none; } }
+		@media (prefers-reduced-motion: reduce) { #glyph { display: none; } }
+	</style>
+	$GODOT_HEAD_INCLUDE
+</head>
+<body>
+	<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
+	<noscript>Tessera needs JavaScript.</noscript>
+
+	<div id="boot">
+		<canvas id="glyph" width="380" height="380"></canvas>
+		<h1 id="wordmark">TESSERA</h1>
+		<p id="tagline">a puzzle in four spatial dimensions</p>
+		<div id="bar"><div id="fill"></div></div>
+		<div id="note">waking the lattice…</div>
+		<div id="fail"></div>
+	</div>
+
+	<div id="keys">
+		<b>WASD</b> move &nbsp;·&nbsp; <b>Q</b>/<b>E</b> kata / ana &nbsp;·&nbsp;
+		<b>F</b>/<b>G</b> turn into the fourth axis &nbsp;·&nbsp; <b>Z</b> undo &nbsp;·&nbsp; drag to orbit
+	</div>
+
+	<script>
+	// The loading glyph is the same hypercube the game uses for the player:
+	// sixteen vertices, thirty-two edges, rotated in two 4D planes and
+	// projected down through the fourth dimension before the usual 3D one.
+	(function () {
+		const cv = document.getElementById('glyph');
+		if (!cv || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const ctx = cv.getContext('2d');
+		const V = [], E = [];
+		for (let i = 0; i < 16; i++) {
+			V.push([(i & 1 ? 1 : -1), (i & 2 ? 1 : -1), (i & 4 ? 1 : -1), (i & 8 ? 1 : -1)]);
+		}
+		for (let i = 0; i < 16; i++) {
+			for (let b = 0; b < 4; b++) { const j = i ^ (1 << b); if (j > i) E.push([i, j]); }
+		}
+		let t = 0;
+		function frame() {
+			t += 0.0115;
+			const s = cv.width, h = s / 2;
+			ctx.clearRect(0, 0, s, s);
+			const ca = Math.cos(t), sa = Math.sin(t);
+			const cb = Math.cos(t * 0.63), sb = Math.sin(t * 0.63);
+			const P = V.map(([x, y, z, w]) => {
+				let X = x * ca + w * sa, Wc = w * ca - x * sa;      // rotate in XW
+				let Y = y * cb - z * sb, Z = y * sb + z * cb;        // and in YZ
+				const k4 = 2.6 / (2.6 - Wc * 0.85);
+				const k3 = 3.4 / (3.4 - Z * k4 * 0.6);
+				return [h + X * k4 * k3 * 44, h + Y * k4 * k3 * 44, k4];
+			});
+			ctx.lineCap = 'round';
+			for (const [a, b] of E) {
+				const p = P[a], q = P[b];
+				const d = (p[2] + q[2]) * 0.5;
+				ctx.strokeStyle = `rgba(${Math.round(98 + 60 * (d - 1))}, ${Math.round(216 - 40 * (d - 1))}, 255, ${0.20 + 0.55 * (d - 0.6)})`;
+				ctx.lineWidth = 1.0 + 2.0 * (d - 0.7);
+				ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
+			}
+			requestAnimationFrame(frame);
+		}
+		frame();
+	}());
+	</script>
+
+	<script src="$GODOT_URL"></script>
+	<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	const boot = document.getElementById('boot');
+	const fill = document.getElementById('fill');
+	const note = document.getElementById('note');
+	const fail = document.getElementById('fail');
+	const keys = document.getElementById('keys');
+
+	let done = false;
+
+	function fatal(err) {
+		console.error(err);
+		fail.style.display = 'block';
+		fail.textContent = (err instanceof Error) ? err.message : String(err);
+		note.textContent = 'the lattice did not open';
+		done = true;
+	}
+
+	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	if (missing.length !== 0) {
+		fatal('This browser is missing features Tessera needs:\n\n' + missing.join('\n')
+			+ '\n\nA current Chrome, Edge, Firefox or Safari should work.');
+		return;
+	}
+
+	// The engine is a large download the first time. Say so, rather than
+	// leaving a bar that looks stuck.
+	const hints = [
+		'waking the lattice…',
+		'this is a one-time download; it is cached after the first visit',
+		'walls are only walls in the slice you are standing in',
+	];
+	let hint = 0;
+	const cycle = setInterval(() => {
+		if (done) { clearInterval(cycle); return; }
+		hint = (hint + 1) % hints.length;
+		note.textContent = hints[hint];
+	}, 4200);
+
+	engine.startGame({
+		onProgress: function (current, total) {
+			if (current > 0 && total > 0) {
+				fill.style.width = Math.round(100 * current / total) + '%';
+			}
+		},
+	}).then(() => {
+		done = true;
+		clearInterval(cycle);
+		fill.style.width = '100%';
+		boot.classList.add('gone');
+		setTimeout(() => boot.remove(), 800);
+		setTimeout(() => keys.classList.add('gone'), 9000);
+		document.getElementById('canvas').focus();
+	}, fatal);
+}());
+	</script>
+</body>
+</html>

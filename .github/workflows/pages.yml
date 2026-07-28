@@ -1,0 +1,50 @@
+name: Pages
+
+# Publishes the Tessera web build. The export itself is committed under docs/
+# rather than produced here: a Godot web export needs the engine plus 1.3 GB of
+# export templates, and making every deploy re-download them to rebuild bytes
+# that are already known would be slower and far easier to break.
+
+on:
+  push:
+    branches:
+      - claude/third-game-web-mobile-pc-jwz54o
+    paths:
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a deploy half-way; let one finish before the next starts.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # Turns Pages on the first time this runs, so the site does not need
+          # anyone to visit the repository settings.
+          enablement: true
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,50 +1,79 @@
 # IHIG
 
-A monorepo of small mobile games. Android is the only target for now.
+A monorepo of small games.
 
 Each game is a self-contained Godot 4 project under `games/`, with nothing
-shared between them yet — shared code can move into a `shared/` addon once two
-games actually want the same thing.
+shared between them but the build tooling — shared code can move into a
+`shared/` addon once two games actually want the same thing.
 
 ## Games
 
-| Game | Directory | Status |
-| --- | --- | --- |
-| [Planet Hopper](games/planet-hopper) | `games/planet-hopper` | Playable (working title) — endless one-thumb orbit climber |
-| [Lumen](games/lumen) | `games/lumen` | Playable (working title) — one-thumb light-routing puzzle |
+| Game | Directory | Targets | Status |
+| --- | --- | --- | --- |
+| [Tessera](games/tessera) | `games/tessera` | web · Android · Windows · Linux | Playable — a puzzle game in four spatial dimensions |
+| [Lumen](games/lumen) | `games/lumen` | Android | Playable (working title) — one-thumb light-routing puzzle |
+| [Planet Hopper](games/planet-hopper) | `games/planet-hopper` | Android | Playable (working title) — endless one-thumb orbit climber |
 
-The two are deliberately not the same kind of game. Planet Hopper is continuous,
-physical and played on reflex; Lumen is a still board you think at. What they
-share is the shape: portrait, one thumb, no art assets, endless, and a shop full
-of things that change how it looks and nothing about how it plays.
+**[▶ Play Tessera in the browser](https://rootium.github.io/IHIG/)** ·
+[downloads](https://rootium.github.io/IHIG/get/)
 
-## Building an APK
+The three are deliberately not the same kind of game. Planet Hopper is
+continuous, physical and played on reflex. Lumen is a still board you think at.
+Tessera is the big one: a 3D game whose world has a fourth spatial axis you can
+step along and rotate into view, forty-three chambers deep, shipping to the web
+and desktop as well as to a phone.
+
+## Building
 
 ```sh
-tools/build_android.sh                      # defaults to games/planet-hopper
-tools/build_android.sh games/lumen
+tools/build.sh games/tessera                 # web, android, linux, windows
+tools/build.sh games/tessera web android     # or pick targets
+tools/build_android.sh games/lumen           # the older games are Android-only
 ```
 
 The script provisions everything it needs into `~/.ihig-toolchain` (override
 with `IHIG_TOOLCHAIN`) and is safe to re-run — each step is skipped when its
 output already exists. The first run downloads roughly 1.3 GB of Godot export
-templates. Output lands in `build/<game>.apk`.
+templates. Output lands in `build/`.
 
-Requirements on the host: `curl`, `unzip`, `java`, `javac`, `keytool`
-(a JDK 17+ is fine) and `python3`.
+Requirements on the host: `curl`, `unzip`, `python3`, and for the Android target
+also `java`, `javac` and `keytool` (a JDK 17+ is fine).
+
+## The web build and GitHub Pages
+
+`docs/` holds the built web export and is what
+[github.io/IHIG](https://rootium.github.io/IHIG/) serves, via
+`.github/workflows/pages.yml`. The export is committed rather than built in CI:
+a Godot web export needs the engine plus 1.3 GB of templates, and making every
+deploy re-download them to rebuild bytes that are already known would be slower
+and much easier to break. To refresh it:
+
+```sh
+tools/build.sh games/tessera web
+rm -rf docs && mkdir -p docs && cp -r build/web/. docs/
+```
+
+The web export is built **without thread support** on purpose. Threads need
+`SharedArrayBuffer`, which needs COOP/COEP response headers, which GitHub Pages
+cannot send. Building without them is what lets the same files drop straight
+onto Pages and work.
+
+Desktop binaries are not committed — they are about a hundred megabytes each,
+which is more than a git repository should carry. They are one command away
+from a clone.
 
 ### About signing
 
-The build generates a self-signed key at `~/.ihig-toolchain/keystore/` on first
-run and signs with it. That is fine for sideloading and for CI, but it is **not**
-a key to publish to Google Play with. For a real release, generate your own key,
-keep it somewhere safe, and point the build at it:
+The Android build generates a self-signed key at `~/.ihig-toolchain/keystore/`
+on first run and signs with it. That is fine for sideloading and for CI, but it
+is **not** a key to publish to Google Play with. For a real release, generate
+your own key, keep it somewhere safe, and point the build at it:
 
 ```sh
 export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/path/to/your.keystore
 export GODOT_ANDROID_KEYSTORE_RELEASE_USER=your-alias
 export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=...
-tools/build_android.sh
+tools/build.sh games/tessera android
 ```
 
 No keys or passwords are stored in this repo, and `*.keystore` / `*.jks` /
@@ -58,10 +87,13 @@ for why signing does not use the Android SDK.
 ## Layout
 
 ```
-games/<name>/         a Godot 4 project, one per game
-tools/build_android.sh provisions the toolchain and exports an APK
-tools/apksigner-shim/  minimal apksigner used when the Android SDK is unreachable
-build/                 APK output (gitignored)
+games/<name>/            a Godot 4 project, one per game
+tools/build.sh           provisions the toolchain and exports any target
+tools/build_android.sh   the Android path, including signing
+tools/apksigner-shim/    minimal apksigner used when the Android SDK is unreachable
+tools/tessera/           Tessera's level generator, solver and music renderer
+docs/                    the built web export, served by GitHub Pages
+build/                   local build output (gitignored)
 ```
 
 `export_presets.cfg` is committed for each game. It normally holds signing

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#06070f">
+<title>Tessera — downloads</title>
+<style>
+	:root { --void:#06070f; --ink:#dfe8ff; --dim:#7286b5; --accent:#62d8ff; --ana:#ff7bac; --goal:#3dffc0; }
+	* { box-sizing: border-box; }
+	html,body { margin:0; padding:0; min-height:100%; }
+	body {
+		background: radial-gradient(120% 80% at 50% 0%, #141c3c 0%, #06070f 62%) no-repeat, var(--void);
+		color: var(--ink);
+		font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+		-webkit-font-smoothing: antialiased;
+		line-height: 1.6;
+		padding: 3rem 1.25rem 5rem;
+	}
+	main { max-width: 46rem; margin: 0 auto; }
+	.mark { display:flex; align-items:center; gap:1rem; margin-bottom:.4rem; }
+	.mark img { width:64px; height:64px; border-radius:14px; }
+	h1 { font-size: clamp(1.9rem,6vw,2.8rem); letter-spacing:.3em; text-indent:.3em; margin:0; font-weight:500; }
+	.tag { color: var(--accent); margin:.1rem 0 2.2rem; }
+	h2 { font-size:.82rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim);
+	     margin:2.4rem 0 .9rem; font-weight:600; }
+	.cards { display:grid; gap:.85rem; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); }
+	a.card {
+		display:block; padding:1.05rem 1.2rem; border-radius:.7rem; text-decoration:none;
+		border:1px solid rgba(98,216,255,.28); background:rgba(98,216,255,.05); color:var(--ink);
+		transition:border-color .18s, background .18s, transform .18s;
+	}
+	a.card:hover { border-color:var(--accent); background:rgba(98,216,255,.13); transform:translateY(-2px); }
+	a.card.play { border-color:rgba(61,255,192,.4); background:rgba(61,255,192,.07); }
+	a.card.play:hover { border-color:var(--goal); background:rgba(61,255,192,.15); }
+	a.card b { display:block; font-size:1.08rem; margin-bottom:.15rem; }
+	a.card span { color:var(--dim); font-size:.85rem; }
+	p { color:#b9c6e8; }
+	code { background:rgba(114,134,181,.16); padding:.16em .45em; border-radius:.3em; font-size:.88em; }
+	kbd { background:rgba(98,216,255,.14); border:1px solid rgba(98,216,255,.3); border-radius:.3em;
+	      padding:.06em .42em; font-size:.85em; color:var(--accent); font-family:inherit; }
+	.note { border-left:2px solid rgba(114,134,181,.4); padding-left:1rem; color:var(--dim); font-size:.9rem; }
+	footer { margin-top:3.5rem; color:var(--dim); font-size:.8rem; }
+	footer a { color:var(--dim); }
+</style>
+</head>
+<body>
+<main>
+	<div class="mark">
+		<img src="icon.svg" alt="">
+		<h1>TESSERA</h1>
+	</div>
+	<p class="tag">a puzzle game in four spatial dimensions</p>
+
+	<p>You are standing in a three dimensional slice of a four dimensional room. The
+	walls you can see are only the walls <em>in this slice</em>. Step along the axis
+	you cannot see and a wall in front of you may simply not be there; turn that axis
+	into view and a wall one cell thick becomes a corridor running away from you.</p>
+
+	<p>Forty-three chambers. Every one proved solvable by exhaustive search before it
+	shipped, and its shortest solution is the par you are playing against.</p>
+
+	<h2>Play</h2>
+	<div class="cards">
+		<a class="card play" href="../"><b>Play in the browser →</b>
+			<span>Works on desktop and phone. No install.</span></a>
+		<a class="card" href="../download/tessera.apk" download><b>Android APK ↓</b>
+			<span>26 MB · arm64 · Android 7.0+ · sideload</span></a>
+	</div>
+
+	<h2>Controls</h2>
+	<p><kbd>WASD</kbd> move &middot; <kbd>Q</kbd> <kbd>E</kbd> kata and ana, the two
+	directions along the hidden axis &middot; <kbd>F</kbd> <kbd>G</kbd> turn a visible
+	axis into the hidden one &middot; <kbd>Z</kbd> undo &middot; <kbd>R</kbd> restart
+	&middot; drag to orbit the camera. On a phone the same moves are on screen.</p>
+
+	<h2>Desktop builds</h2>
+	<p>Windows and Linux binaries are a single command from a clone — they are a
+	hundred megabytes each, which is more than a git repository should carry:</p>
+	<p><code>tools/build.sh games/tessera linux windows</code></p>
+
+	<p class="note">The APK is signed with a self-signed key, so Android will warn you
+	when you sideload it. That is expected: it is not a Play Store release.</p>
+
+	<footer>
+		IHIG &middot; third game &middot;
+		<a href="https://github.com/rootium/IHIG">source</a>
+	</footer>
+</main>
+</body>
+</html>
