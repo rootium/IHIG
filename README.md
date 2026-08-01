@@ -17,6 +17,9 @@ shared between them but the build tooling — shared code can move into a
 **[▶ Play all three in the browser](https://rootium.github.io/IHIG/)** ·
 [downloads](https://rootium.github.io/IHIG/get/)
 
+On taking these to YouTube Playables, and the one measurement that decides
+whether Godot can go there at all, see [PLAYABLES.md](PLAYABLES.md).
+
 The three are deliberately not the same kind of game. Planet Hopper is
 continuous, physical and played on reflex. Lumen is a still board you think at.
 Tessera is the big one: a 3D game whose world has a fourth spatial axis you can
