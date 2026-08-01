@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<meta name="theme-color" content="#0b0c16">
+	<meta name="description" content="Lumen — a light-routing puzzle. Turn the mirrors, mix the colours, light every ring.">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<title>Lumen</title>
+	<style>
+		:root {
+			--void: #0b0c16;
+			--ink: #e0e8ff;
+			--dim: #6f7a9c;
+			--accent: #61a1ff;
+			--warm: #ff4d61;
+		}
+		html, body { margin: 0; padding: 0; border: 0; height: 100%; }
+		body {
+			background: var(--void);
+			color: var(--ink);
+			overflow: hidden;
+			touch-action: none;
+			overscroll-behavior: none;
+			font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			-webkit-font-smoothing: antialiased;
+		}
+		#canvas { display: block; width: 100%; height: 100%; }
+		#canvas:focus { outline: none; }
+
+		#boot {
+			position: fixed; inset: 0; z-index: 10;
+			display: flex; flex-direction: column;
+			align-items: center; justify-content: center;
+			gap: 1.1rem;
+			background: radial-gradient(120% 90% at 50% 38%, #161a33 0%, #0b0c16 68%);
+			transition: opacity .7s ease;
+		}
+		#boot.gone { opacity: 0; pointer-events: none; }
+
+		#glyph { width: 190px; height: 190px; display: block; }
+
+		#wordmark {
+			font-size: clamp(2rem, 8vw, 3.4rem);
+			letter-spacing: .42em;
+			text-indent: .42em;
+			font-weight: 500;
+			margin: 0;
+		}
+		#tagline {
+			color: var(--accent);
+			font-size: clamp(.78rem, 2.9vw, 1rem);
+			letter-spacing: .06em;
+			margin: -.4rem 0 .3rem;
+			text-align: center;
+			padding: 0 1.2rem;
+		}
+		#bar {
+			width: min(340px, 72vw); height: 3px;
+			background: rgba(111, 122, 156, .22);
+			border-radius: 2px; overflow: hidden;
+		}
+		#fill {
+			height: 100%; width: 0%;
+			background: linear-gradient(90deg, var(--warm), var(--accent));
+			transition: width .25s ease;
+		}
+		#note {
+			color: var(--dim); font-size: .78rem; letter-spacing: .05em;
+			min-height: 1.2em; text-align: center; padding: 0 1.5rem;
+		}
+		#fail {
+			display: none; max-width: 34rem; margin: 0 1.5rem; padding: 1rem 1.2rem;
+			border: 1px solid #9b3943; background: #2a1620; border-radius: .5rem;
+			color: #ffd8de; font-size: .85rem; line-height: 1.5; white-space: pre-wrap;
+		}
+		#keys {
+			position: fixed; left: 0; right: 0; bottom: 1.1rem; z-index: 9;
+			text-align: center; color: var(--dim); font-size: .74rem;
+			letter-spacing: .09em; pointer-events: none;
+			transition: opacity 1s ease;
+		}
+		#keys b { color: var(--accent); font-weight: 600; }
+		#keys.gone { opacity: 0; }
+		@media (max-width: 620px) { #keys { display: none; } }
+		@media (prefers-reduced-motion: reduce) { #glyph { display: none; } }
+	</style>
+	<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
+<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
+
+</head>
+<body>
+	<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
+	<noscript>Lumen needs JavaScript.</noscript>
+
+	<div id="boot">
+		<canvas id="glyph" width="380" height="380"></canvas>
+		<h1 id="wordmark">LUMEN</h1>
+		<p id="tagline">turn the mirrors, light every ring</p>
+		<div id="bar"><div id="fill"></div></div>
+		<div id="note">striking the lamps…</div>
+		<div id="fail"></div>
+	</div>
+
+	<div id="keys">
+		<b>click a mirror</b> to turn it &nbsp;·&nbsp; two colours reaching one ring mix
+	</div>
+
+	<script>
+	// The loading glyph is the game's one rule: a red beam and a green beam
+	// routed by mirrors into the same ring, which lights yellow when both
+	// arrive. It runs on a loop rather than a solve, so it reads as a
+	// demonstration and not as a puzzle being spoiled.
+	(function () {
+		const cv = document.getElementById('glyph');
+		if (!cv || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const ctx = cv.getContext('2d');
+		const S = cv.width, U = S / 6;
+		const P = (cx, cy) => [U * (cx + 0.5) + U * 0.5, U * (cy + 0.5) + U * 0.5];
+
+		// Two paths, each a list of grid cells, ending on the shared ring.
+		const RED = [[0, 1], [3, 1], [3, 3]];
+		const GRN = [[1, 4], [1, 3], [3, 3]];
+		const RING = P(3, 3);
+
+		function polyline(path) {
+			const pts = path.map(([x, y]) => P(x, y));
+			const segs = [];
+			let total = 0;
+			for (let i = 0; i < pts.length - 1; i++) {
+				const d = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+				segs.push({ a: pts[i], b: pts[i + 1], d });
+				total += d;
+			}
+			return { segs, total };
+		}
+		const rp = polyline(RED), gp = polyline(GRN);
+
+		function drawBeam(p, travel, col, glow) {
+			let left = travel;
+			ctx.lineCap = 'round';
+			for (const s of p.segs) {
+				if (left <= 0) break;
+				const f = Math.min(1, left / s.d);
+				const x = s.a[0] + (s.b[0] - s.a[0]) * f;
+				const y = s.a[1] + (s.b[1] - s.a[1]) * f;
+				ctx.strokeStyle = glow; ctx.lineWidth = 11;
+				ctx.beginPath(); ctx.moveTo(s.a[0], s.a[1]); ctx.lineTo(x, y); ctx.stroke();
+				ctx.strokeStyle = col; ctx.lineWidth = 3;
+				ctx.beginPath(); ctx.moveTo(s.a[0], s.a[1]); ctx.lineTo(x, y); ctx.stroke();
+				left -= s.d;
+			}
+		}
+
+		function mirror(cx, cy, lean) {
+			const [x, y] = P(cx, cy), k = U * 0.30;
+			const dx = k, dy = lean ? k : -k;
+			ctx.strokeStyle = 'rgba(224,232,255,.92)';
+			ctx.lineWidth = 5; ctx.lineCap = 'round';
+			ctx.beginPath(); ctx.moveTo(x - dx, y - dy); ctx.lineTo(x + dx, y + dy); ctx.stroke();
+		}
+
+		let t = 0;
+		function frame() {
+			t += 0.009;
+			const loop = t % 1;
+			// Ease the sweep, hold the lit ring, then start over.
+			const sweep = Math.min(1, loop / 0.62);
+			const e = sweep * sweep * (3 - 2 * sweep);
+			ctx.clearRect(0, 0, S, S);
+
+			mirror(3, 1, true);
+			mirror(1, 3, false);
+
+			drawBeam(rp, rp.total * e, 'rgba(255,77,97,.95)', 'rgba(255,77,97,.13)');
+			drawBeam(gp, gp.total * e, 'rgba(92,242,140,.95)', 'rgba(92,242,140,.13)');
+
+			const lit = e >= 0.999;
+			const r = U * 0.30;
+			if (lit) {
+				ctx.fillStyle = 'rgba(255,214,92,.95)';
+				ctx.beginPath(); ctx.arc(RING[0], RING[1], r, 0, Math.PI * 2); ctx.fill();
+				ctx.fillStyle = 'rgba(255,255,255,.85)';
+				ctx.beginPath(); ctx.arc(RING[0], RING[1], r * 0.42, 0, Math.PI * 2); ctx.fill();
+				ctx.strokeStyle = 'rgba(255,214,92,.35)'; ctx.lineWidth = 2;
+				ctx.beginPath(); ctx.arc(RING[0], RING[1], r * (1.6 + 0.5 * (loop - 0.62)), 0, Math.PI * 2); ctx.stroke();
+			} else {
+				ctx.strokeStyle = 'rgba(255,214,92,.85)'; ctx.lineWidth = 4;
+				ctx.beginPath(); ctx.arc(RING[0], RING[1], r, 0, Math.PI * 2); ctx.stroke();
+			}
+			requestAnimationFrame(frame);
+		}
+		frame();
+	}());
+	</script>
+
+	<script src="index.js"></script>
+	<script>
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":60068,"index.wasm":37695054},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+// Every game in this repo exports the *same* 37 MB engine binary — the pck is
+// the only part that differs (tens of kilobytes). So the wasm is served once
+// from /engine and every game points at it: whichever game you open first pays
+// for the engine, and the other two then start from the browser cache.
+GODOT_CONFIG.mainPack = 'index.pck';
+GODOT_CONFIG.executable = '../engine/godot';
+if (GODOT_CONFIG.fileSizes && GODOT_CONFIG.fileSizes['index.wasm']) {
+	GODOT_CONFIG.fileSizes['../engine/godot.wasm'] = GODOT_CONFIG.fileSizes['index.wasm'];
+}
+const GODOT_THREADS_ENABLED = false;
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	const boot = document.getElementById('boot');
+	const fill = document.getElementById('fill');
+	const note = document.getElementById('note');
+	const fail = document.getElementById('fail');
+	const keys = document.getElementById('keys');
+
+	let done = false;
+
+	function fatal(err) {
+		console.error(err);
+		fail.style.display = 'block';
+		fail.textContent = (err instanceof Error) ? err.message : String(err);
+		note.textContent = 'the lamps stayed dark';
+		done = true;
+	}
+
+	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	if (missing.length !== 0) {
+		fatal('This browser is missing features Lumen needs:\n\n' + missing.join('\n')
+			+ '\n\nA current Chrome, Edge, Firefox or Safari should work.');
+		return;
+	}
+
+	// The engine is a large download the first time. Say so, rather than
+	// leaving a bar that looks stuck.
+	const hints = [
+		'striking the lamps…',
+		'this is a one-time download; it is cached after the first visit',
+		'red and green make yellow, and nothing else will do',
+	];
+	let hint = 0;
+	const cycle = setInterval(() => {
+		if (done) { clearInterval(cycle); return; }
+		hint = (hint + 1) % hints.length;
+		note.textContent = hints[hint];
+	}, 4200);
+
+	engine.startGame({
+		onProgress: function (current, total) {
+			if (current > 0 && total > 0) {
+				fill.style.width = Math.round(100 * current / total) + '%';
+			}
+		},
+	}).then(() => {
+		done = true;
+		clearInterval(cycle);
+		fill.style.width = '100%';
+		boot.classList.add('gone');
+		setTimeout(() => boot.remove(), 800);
+		setTimeout(() => keys.classList.add('gone'), 9000);
+		document.getElementById('canvas').focus();
+	}, fatal);
+}());
+	</script>
+</body>
+</html>
+

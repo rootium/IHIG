@@ -11,10 +11,10 @@ shared between them but the build tooling — shared code can move into a
 | Game | Directory | Targets | Status |
 | --- | --- | --- | --- |
 | [Tessera](games/tessera) | `games/tessera` | web · Android · Windows · Linux | Playable — a puzzle game in four spatial dimensions |
-| [Lumen](games/lumen) | `games/lumen` | Android | Playable (working title) — one-thumb light-routing puzzle |
-| [Planet Hopper](games/planet-hopper) | `games/planet-hopper` | Android | Playable (working title) — endless one-thumb orbit climber |
+| [Lumen](games/lumen) | `games/lumen` | web · Android | Playable (working title) — one-thumb light-routing puzzle |
+| [Planet Hopper](games/planet-hopper) | `games/planet-hopper` | web · Android | Playable (working title) — endless one-thumb orbit climber |
 
-**[▶ Play Tessera in the browser](https://rootium.github.io/IHIG/)** ·
+**[▶ Play all three in the browser](https://rootium.github.io/IHIG/)** ·
 [downloads](https://rootium.github.io/IHIG/get/)
 
 The three are deliberately not the same kind of game. Planet Hopper is
@@ -28,7 +28,8 @@ and desktop as well as to a phone.
 ```sh
 tools/build.sh games/tessera                 # web, android, linux, windows
 tools/build.sh games/tessera web android     # or pick targets
-tools/build_android.sh games/lumen           # the older games are Android-only
+tools/build_android.sh games/lumen           # one game, Android only
+tools/build_site.sh                          # rebuild every web export under docs/
 ```
 
 The script provisions everything it needs into `~/.ihig-toolchain` (override
@@ -41,9 +42,31 @@ also `java`, `javac` and `keytool` (a JDK 17+ is fine).
 
 ## The web build and GitHub Pages
 
-`docs/` holds the built web export. `.github/workflows/pages.yml` mirrors it
-onto the `gh-pages` branch on every push, and GitHub serves that branch at
+`docs/` holds the built site. `.github/workflows/pages.yml` mirrors it onto the
+`gh-pages` branch on every push to `main`, and GitHub serves that branch at
 [rootium.github.io/IHIG](https://rootium.github.io/IHIG/).
+
+```
+docs/index.html      the landing page, listing all three games
+docs/engine/         ONE copy of the Godot runtime, shared by all three
+docs/<game>/         a game: its page, its loader and its pck
+docs/get/            downloads
+docs/shots/          screenshots used by the landing page
+```
+
+**The engine is shared on purpose.** Every game here exports a byte-identical
+37 MB `index.wasm` — that file is the engine, not the game; the game is the
+`pck` beside it, which is tens of kilobytes. Three self-contained copies would
+charge a visitor 37 MB again for the second game they tried. Instead each
+game's HTML shell points at `../engine/godot.wasm`, so whichever game is opened
+first pays for the engine and the rest start from the browser cache. The two
+audio worklets are resolved from that same path by the loader, so they live in
+`docs/engine/` too — getting that wrong costs you all sound and nothing else,
+which is exactly the kind of bug that ships.
+
+Use `tools/build_site.sh` to regenerate it. It refuses to run if the games
+disagree on engine version, since sharing one runtime between mismatched
+exports would quietly ship the wrong bytes.
 
 **If the site is not up yet**, Pages has never been switched on for this
 repository, and neither a workflow nor this session can switch it on — creating
@@ -51,14 +74,14 @@ a Pages site needs a permission the Actions token is not granted. One click
 fixes it: *Settings → Pages → Source: Deploy from a branch → `gh-pages` / `/`
 (root)*. The branch is already there and already correct.
 
-The export is committed rather than built in CI:
-a Godot web export needs the engine plus 1.3 GB of templates, and making every
-deploy re-download them to rebuild bytes that are already known would be slower
-and much easier to break. To refresh it:
+The exports are committed rather than built in CI: a Godot web export needs the
+engine plus 1.3 GB of templates, and making every deploy re-download them to
+rebuild bytes that are already known would be slower and much easier to break.
+To refresh them:
 
 ```sh
-tools/build.sh games/tessera web
-rm -rf docs && mkdir -p docs && cp -r build/web/. docs/
+tools/build_site.sh              # all three
+tools/build_site.sh lumen        # or just one
 ```
 
 The web export is built **without thread support** on purpose. Threads need
@@ -98,9 +121,10 @@ for why signing does not use the Android SDK.
 games/<name>/            a Godot 4 project, one per game
 tools/build.sh           provisions the toolchain and exports any target
 tools/build_android.sh   the Android path, including signing
+tools/build_site.sh      rebuilds every web export into docs/
 tools/apksigner-shim/    minimal apksigner used when the Android SDK is unreachable
 tools/tessera/           Tessera's level generator, solver and music renderer
-docs/                    the built web export, served by GitHub Pages
+docs/                    the built site, served by GitHub Pages
 build/                   local build output (gitignored)
 ```
 
