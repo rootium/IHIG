@@ -360,7 +360,7 @@ func _spacer(h: int) -> Control:
 
 func _refresh_wallet() -> void:
 	for l in _credits_labels:
-		l.text = "✦ %d credits" % SaveData.credits
+		l.text = "•  %d credits" % SaveData.credits
 	if _best_label != null:
 		_best_label.text = "Best: %d km" % SaveData.best_distance
 

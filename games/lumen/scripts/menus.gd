@@ -30,7 +30,7 @@ var _credit_labels: Array[Label] = []
 var _progress: Label
 var _play: Button
 var _cleared_head: Label
-var _cleared_stars: Label
+var _cleared_stars: StarRow
 var _cleared_lines: Label
 var _shop_list: VBoxContainer
 var _tab: String = "optic"
@@ -62,7 +62,7 @@ func show_title() -> void:
 func show_cleared(level: int, taps: int, par: int, result: Dictionary) -> void:
 	var stars := int(result.stars)
 	_cleared_head.text = "LEVEL %d" % level
-	_cleared_stars.text = "★".repeat(stars) + "☆".repeat(3 - stars)
+	_cleared_stars.set_rating(stars)
 	_cleared_lines.text = "%d %s against a par of %d\n\n+%d credits%s" % [
 		taps, "tap" if taps == 1 else "taps", par,
 		int(result.earned), "" if bool(result.fresh) else "  (replay)"]
@@ -138,7 +138,7 @@ func _build_cleared() -> Control:
 	_cleared_head = UI.label("", 46, Color(0.96, 0.97, 1.0))
 	box.add_child(_cleared_head)
 
-	_cleared_stars = UI.label("", 56, Color(1.0, 0.84, 0.36))
+	_cleared_stars = StarRow.new()
 	box.add_child(_cleared_stars)
 	box.add_child(UI.spacer(8))
 
@@ -448,7 +448,7 @@ func _wallet_label() -> Label:
 
 func _refresh_wallet() -> void:
 	for l in _credit_labels:
-		l.text = "✦ %d credits" % SaveData.credits
+		l.text = "•  %d credits" % SaveData.credits
 
 
 func _set_panel(which: Control) -> void:

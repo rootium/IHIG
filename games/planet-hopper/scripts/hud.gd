@@ -75,7 +75,7 @@ func _ready() -> void:
 
 func refresh() -> void:
 	_score.text = "%02d" % height
-	_stars.text = "✦ %d" % stars
+	_stars.text = "•  %d" % stars
 	_status.text = status
 	_bars.queue_redraw()
 

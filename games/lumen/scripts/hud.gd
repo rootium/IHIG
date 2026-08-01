@@ -70,5 +70,5 @@ func _ready() -> void:
 func refresh() -> void:
 	_level.text = "LEVEL %d" % level
 	_taps.text = "%d taps   ·   par %d" % [taps, par]
-	_credits.text = "✦ %d" % SaveData.credits
+	_credits.text = "•  %d" % SaveData.credits
 	_hint.disabled = not hint_ready or SaveData.credits < LM.HINT_COST
