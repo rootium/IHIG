@@ -13,6 +13,10 @@ enum Screen { TITLE, SELECT, PLAY, HOWTO, SETTINGS, PAUSE, SOLVED, OUTRO }
 
 const SCOPE_RANGE := 4
 
+## Edge of a square thumb target. 72 in a 1280x720 viewport lands around 9mm on
+## a phone once the stretch scale is applied, which is the size a thumb wants.
+const PAD_SIZE := 72
+
 var main: Node
 var game: Game
 var screen := Screen.TITLE
@@ -30,9 +34,12 @@ var _stat_lbl: Label
 var _axis_lbl: RichTextLabel
 var _shard_lbl: Label
 var _keys_box: HBoxContainer
+var _undo_btn: Button
+var _reset_btn: Button
 var _touch: Control
 var _select_grid: GridContainer
 var _solved_body: RichTextLabel
+var _howto_body: RichTextLabel
 var _use_touch := false
 
 
@@ -198,43 +205,48 @@ func _build_hud() -> void:
 	col.add_child(_keys_box)
 
 	_axis_lbl = _rich(15)
-	_axis_lbl.position = Vector2(26, 0)
 	_axis_lbl.custom_minimum_size = Vector2(340, 24)
-	_axis_lbl.anchor_top = 1.0
-	_axis_lbl.anchor_bottom = 1.0
-	_axis_lbl.offset_top = -96
-	_axis_lbl.offset_bottom = -66
 	_hud.add_child(_axis_lbl)
 
 	_scope = Control.new()
 	_scope.custom_minimum_size = Vector2(330, 54)
-	_scope.anchor_top = 1.0
-	_scope.anchor_bottom = 1.0
-	_scope.position = Vector2(26, 0)
-	_scope.offset_top = -64
-	_scope.offset_bottom = -18
 	_scope.size = Vector2(330, 46)
 	_scope.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_scope.draw.connect(_draw_scope)
 	_hud.add_child(_scope)
 
+	# Both are positioned by _place_readouts, which depends on touch mode.
+
 	_shard_lbl = _lab("", 17, Cfg.C_SHARD_EDGE, _mono)
 	_shard_lbl.anchor_left = 1.0
 	_shard_lbl.anchor_right = 1.0
-	_shard_lbl.offset_left = -190
-	_shard_lbl.offset_top = 20
+	_shard_lbl.offset_left = -260
+	_shard_lbl.offset_top = 66
 	_shard_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_shard_lbl.offset_right = -80
+	_shard_lbl.offset_right = -22
 	_hud.add_child(_shard_lbl)
 
-	var pause_btn := _btn("| |", func(): go(Screen.PAUSE), Cfg.UI_DIM, 17)
-	pause_btn.anchor_left = 1.0
-	pause_btn.anchor_right = 1.0
-	pause_btn.offset_left = -72
-	pause_btn.offset_right = -22
-	pause_btn.offset_top = 18
-	pause_btn.offset_bottom = 58
-	_hud.add_child(pause_btn)
+	# Undo and restart are chores, not moves. On a phone they used to sit in the
+	# bottom-right cluster taking two of the six thumb slots away from the moves
+	# that actually play the game, so they live up here with pause instead — and
+	# only when there is no keyboard to press Z and R on.
+	var top_right := HBoxContainer.new()
+	top_right.add_theme_constant_override("separation", 8)
+	top_right.alignment = BoxContainer.ALIGNMENT_END
+	top_right.anchor_left = 1.0
+	top_right.anchor_right = 1.0
+	top_right.offset_left = -340
+	top_right.offset_right = -22
+	top_right.offset_top = 18
+	_hud.add_child(top_right)
+
+	_undo_btn = _btn("UNDO", func(): game.undo(), Cfg.UI_DIM, 15)
+	_undo_btn.focus_mode = Control.FOCUS_NONE
+	top_right.add_child(_undo_btn)
+	_reset_btn = _btn("RESET", func(): game.restart(), Cfg.UI_DIM, 15)
+	_reset_btn.focus_mode = Control.FOCUS_NONE
+	top_right.add_child(_reset_btn)
+	top_right.add_child(_btn("| |", func(): go(Screen.PAUSE), Cfg.UI_DIM, 17))
 
 	_toast = _lab("", 19, Cfg.UI_ACCENT)
 	_toast.anchor_left = 0.0
@@ -452,27 +464,11 @@ func _build_howto() -> Control:
 	var p := _pane()
 	var v := _column(p, 10)
 	v.add_child(_lab("FOUR DIRECTIONS, NOT THREE", 34, Cfg.UI_TEXT))
-	var r := _rich(19)
-	r.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	r.custom_minimum_size = Vector2(760, 0)
-	r.text = """
-You are standing in a three dimensional slice of a four dimensional room. The walls you can see are only the walls [i]in this slice[/i].
-
-[color=#%s]MOVE[/color]  WASD or the arrow keys.  Drag to turn the camera.
-
-[color=#%s]ANA / KATA[/color]  E and Q. These are the names of the two directions along the axis you cannot see. Stepping along it puts you in a different slice of the same room — a wall in front of you may simply not be there.
-
-[color=#%s]TURN[/color]  F, and later G. This rotates a visible axis into the hidden one through a right angle. Everything that was ahead of you along depth becomes hidden, and everything that was hidden sweeps into view. A wall one cell thick becomes a corridor running away from you.
-
-[color=#%s]THE SCOPE[/color]  Bottom left. It is the column you stand in, read along the hidden axis: filled is solid, hollow is open, a bar underneath means there is a floor to land on.
-
-[color=#%s]THE OUTLINES[/color]  Warm outlines are one step ana. Cool outlines are one step kata.
-
-Z undoes, without limit. R restarts. Falling out of a chamber only rewinds the step that did it, so nothing is ever lost — take the room apart.
-""" % [Cfg.UI_ACCENT.to_html(false), Cfg.ANA.to_html(false), Cfg.C_GOAL_EDGE.to_html(false),
-		Cfg.UI_ACCENT.to_html(false), Cfg.KATA.to_html(false)]
-	r.custom_minimum_size = Vector2(760, 380)
-	v.add_child(r)
+	_howto_body = _rich(19)
+	_howto_body.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_howto_body.custom_minimum_size = Vector2(760, 380)
+	v.add_child(_howto_body)
+	_refresh_howto()
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
@@ -480,6 +476,41 @@ Z undoes, without limit. R restarts. Falling out of a chamber only rewinds the s
 	row.add_child(_btn("TITLE", func(): go(Screen.TITLE), Cfg.UI_DIM))
 	v.add_child(row)
 	return p
+
+
+## The instructions have to name the controls the player actually has. Telling
+## someone on a phone to press E and Q — while the buttons in front of them say
+## ANA and KATA — is worse than saying nothing, so each control gets described
+## as whatever it is on this device.
+func _refresh_howto() -> void:
+	if _howto_body == null:
+		return
+	var accent := Cfg.UI_ACCENT.to_html(false)
+	var ana := Cfg.ANA.to_html(false)
+	var turn := Cfg.C_GOAL_EDGE.to_html(false)
+	var kata := Cfg.KATA.to_html(false)
+	var move_txt := "the arrow pad, bottom left. Drag anywhere on the chamber to swing the camera round." \
+		if _use_touch else "WASD or the arrow keys. Drag to turn the camera."
+	var step_txt := "the [b]STEP[/b] pair, bottom right." if _use_touch else "E and Q."
+	var turn_txt := "the [b]TURN[/b] pair, bottom right." if _use_touch else "F, and later G."
+	var scope_where := "Top left, under the chamber name." if _use_touch else "Bottom left."
+	var undo_txt := "[b]UNDO[/b] at the top right takes back any number of moves, and [b]RESET[/b] starts the chamber over." \
+		if _use_touch else "Z undoes, without limit. R restarts."
+	_howto_body.text = """
+You are standing in a three dimensional slice of a four dimensional room. The walls you can see are only the walls [i]in this slice[/i].
+
+[color=#%s]MOVE[/color]  %s
+
+[color=#%s]ANA / KATA[/color]  %s These are the two directions along the axis you cannot see. Stepping along it puts you in a different slice of the same room — a wall in front of you may simply not be there.
+
+[color=#%s]TURN[/color]  %s This rotates a visible axis into the hidden one through a right angle. Everything that was ahead of you becomes hidden, and everything that was hidden sweeps into view. A wall one cell thick becomes a corridor running away from you. You need it because you can only climb along axes you can see.
+
+[color=#%s]THE SCOPE[/color]  %s It is the column you stand in, read along the hidden axis: filled is solid, hollow is open, a bar underneath means there is a floor to land on.
+
+[color=#%s]THE OUTLINES[/color]  Warm outlines are one step ana. Cool outlines are one step kata.
+
+%s Falling out of a chamber only rewinds the step that did it, so nothing is ever lost — take the room apart.
+""" % [accent, move_txt, ana, step_txt, turn, turn_txt, accent, scope_where, kata, undo_txt]
 
 
 func _slider(label: String, value: float, cb: Callable) -> Control:
@@ -641,12 +672,54 @@ func _refresh_touch_mode() -> void:
 		_use_touch = DisplayServer.is_touchscreen_available() \
 			or OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
 	_touch.visible = _use_touch and screen == Screen.PLAY
+	if _undo_btn != null:
+		_undo_btn.visible = _use_touch
+		_reset_btn.visible = _use_touch
+	_place_readouts()
+	_refresh_howto()
 
 
+## The scope and the axis readout sit in the bottom-left on desktop — which is
+## exactly where the movement pad and a thumb go on a phone. The pad was drawn
+## straight over the scope, hiding the one readout that says what is one step
+## along the axis you cannot see. On touch they move up under the title.
+func _place_readouts() -> void:
+	if _axis_lbl == null or _scope == null:
+		return
+	for c: Control in [_axis_lbl, _scope]:
+		c.offset_left = 26
+		c.anchor_top = 0.0 if _use_touch else 1.0
+		c.anchor_bottom = c.anchor_top
+	_axis_lbl.offset_right = 366
+	_scope.offset_right = 356
+	if _use_touch:
+		_axis_lbl.offset_top = 104
+		_axis_lbl.offset_bottom = 128
+		_scope.offset_top = 134
+		_scope.offset_bottom = 180
+	else:
+		_axis_lbl.offset_top = -96
+		_axis_lbl.offset_bottom = -66
+		_scope.offset_top = -64
+		_scope.offset_bottom = -18
+	_scope.queue_redraw()
+
+
+## A thumb target. The shared button style pads 18px either side for prose
+## buttons, which on a 72px square leaves almost no room for a word — so the
+## margins come back off here.
 func _pad(text: String, cb: Callable, accent: Color, size := 26) -> Button:
 	var b := _btn(text, cb, accent, size)
-	b.custom_minimum_size = Vector2(66, 66)
+	b.custom_minimum_size = Vector2(PAD_SIZE, PAD_SIZE)
 	b.focus_mode = Control.FOCUS_NONE
+	b.autowrap_mode = TextServer.AUTOWRAP_OFF
+	for slot in ["normal", "hover", "pressed", "focus"]:
+		var sb := b.get_theme_stylebox(slot) as StyleBoxFlat
+		if sb != null:
+			sb.content_margin_left = 4
+			sb.content_margin_right = 4
+			sb.content_margin_top = 4
+			sb.content_margin_bottom = 4
 	return b
 
 
@@ -664,8 +737,8 @@ func _build_touch() -> void:
 	pad.anchor_top = 1.0
 	pad.anchor_bottom = 1.0
 	pad.offset_left = 24
-	pad.offset_top = -244
-	pad.offset_bottom = -30
+	pad.offset_top = -(PAD_SIZE * 3 + 6 * 2 + 26)
+	pad.offset_bottom = -26
 	_touch.add_child(pad)
 	pad.add_child(_spacer(0))
 	pad.add_child(_pad("↑", func(): game.walk_screen(0, -1), Cfg.UI_ACCENT))
@@ -677,19 +750,28 @@ func _build_touch() -> void:
 	pad.add_child(_pad("↓", func(): game.walk_screen(0, 1), Cfg.UI_ACCENT))
 	pad.add_child(_spacer(0))
 
-	# right: the moves that only exist in four dimensions
+	# right: the moves that only exist in four dimensions.
+	#
+	# These four used to be labelled ANA / KATA / Z↔W / X↔W — the key bindings
+	# with the keys filed off. "Z↔W" names the plane of the rotation, which is
+	# the one thing a player who has never met a fourth axis cannot possibly
+	# read. So the buttons carry a direction and the *group* carries the verb:
+	# two captioned pairs say "these step, those turn" before anybody has been
+	# told what ana or kata mean.
 	var right := VBoxContainer.new()
-	right.add_theme_constant_override("separation", 6)
+	right.add_theme_constant_override("separation", 4)
+	right.alignment = BoxContainer.ALIGNMENT_END
 	right.anchor_left = 1.0
 	right.anchor_right = 1.0
 	right.anchor_top = 1.0
 	right.anchor_bottom = 1.0
-	right.offset_left = -252
+	right.offset_left = -(PAD_SIZE * 2 + 6 + 24)
 	right.offset_right = -24
-	right.offset_top = -244
-	right.offset_bottom = -30
+	right.offset_top = -(PAD_SIZE * 2 + 4 * 3 + 17 * 2 + 26)
+	right.offset_bottom = -26
 	_touch.add_child(right)
 
+	right.add_child(_caption("STEP  ·  hidden axis"))
 	var r1 := HBoxContainer.new()
 	r1.add_theme_constant_override("separation", 6)
 	r1.alignment = BoxContainer.ALIGNMENT_END
@@ -697,19 +779,20 @@ func _build_touch() -> void:
 	r1.add_child(_pad("ANA", func(): game.try_shift(1), Cfg.ANA, 15))
 	right.add_child(r1)
 
+	right.add_child(_caption("TURN  ·  swap an axis in"))
 	var r2 := HBoxContainer.new()
 	r2.add_theme_constant_override("separation", 6)
 	r2.alignment = BoxContainer.ALIGNMENT_END
-	r2.add_child(_pad("Z↔W", func(): game.try_rotate(2, 1), Cfg.C_GOAL_EDGE, 15))
-	r2.add_child(_pad("X↔W", func(): game.try_rotate(0, 1), Cfg.C_FIELD_EDGE, 15))
+	r2.add_child(_pad("⇅", func(): game.try_rotate(2, 1), Cfg.C_GOAL_EDGE, 30))
+	r2.add_child(_pad("⇄", func(): game.try_rotate(0, 1), Cfg.C_FIELD_EDGE, 30))
 	right.add_child(r2)
 
-	var r3 := HBoxContainer.new()
-	r3.add_theme_constant_override("separation", 6)
-	r3.alignment = BoxContainer.ALIGNMENT_END
-	r3.add_child(_pad("UNDO", func(): game.undo(), Cfg.UI_DIM, 14))
-	r3.add_child(_pad("RESET", func(): game.restart(), Cfg.UI_DIM, 14))
-	right.add_child(r3)
+
+## A group heading over a pair of thumb buttons.
+func _caption(text: String) -> Label:
+	var l := _lab(text, 12, Cfg.UI_DIM)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	return l
 
 
 func _unhandled_input(e: InputEvent) -> void:
