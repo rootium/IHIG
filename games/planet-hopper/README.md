@@ -11,6 +11,8 @@ to settle anywhere for long.
 Built with Godot 4.6. All art is drawn procedurally in `_draw()`, so the project
 carries no image assets beyond the launcher icon.
 
+**[▶ Play it in the browser](https://rootium.github.io/IHIG/planet-hopper/)**
+
 ## Controls
 
 One thumb does everything.

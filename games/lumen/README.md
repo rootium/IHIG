@@ -15,6 +15,26 @@ most of the game.
 Built with Godot 4.6. All art is drawn procedurally in `_draw()`, so the project
 carries no image assets beyond the launcher icon.
 
+**[▶ Play it in the browser](https://rootium.github.io/IHIG/lumen/)**
+
+## Teaching the board
+
+The rules fit in two sentences and used to be stated in two sentences on the
+title screen. That was not enough, because the rules are not the hard part —
+the *pieces* are. A player who cannot tell a splitter from a mirror, or read the
+dot inside a ring, is not solving the puzzle; they are guessing which diagonal
+to tap and waiting to see what happens.
+
+So there is a **HOW TO PLAY** screen. It names every piece, and shows the mixing
+rule as red and green arriving at one yellow ring rather than just asserting it.
+It opens by itself the first time the game is launched, and sits on the title
+screen after that.
+
+The legend draws its icons through `scripts/pieces.gd`, which is also what the
+board draws through. That is deliberate: a legend that redraws the pieces in its
+own code goes quietly wrong the first time the board's look changes, and a
+legend that is wrong teaches the player to read something that is not there.
+
 ## Controls
 
 One thumb, one verb.
@@ -109,6 +129,9 @@ scripts/grid.gd       one puzzle: cells, pieces, and the two orientation snapsho
 scripts/beam.gd       the trace — what the light does, for everyone who asks
 scripts/generator.gd  builds levels backwards from their own solution
 scripts/board.gd      draws the board, turns taps into cells
+scripts/pieces.gd     how each piece looks, from a centre and a size
+scripts/legend.gd     one piece on its own, for the how-to screen
+scripts/stars.gd      the three-star rating, drawn rather than typed
 scripts/glow.gd       the one layer that animates
 scripts/hud.gd  menus.gd  ui.gd   in-run readouts / screens / shared builders
 scripts/skins.gd  save_data.gd    cosmetics catalogue and persistence
@@ -139,10 +162,21 @@ nothing needs to be generated ahead of time or cached to disk.
 ```sh
 godot --path games/lumen                    # play on desktop
 godot --headless --path games/lumen --import
+tools/build_android.sh games/lumen          # an APK
+tools/build_site.sh lumen                   # the web build, into docs/
 ```
 
 Mouse input drives the game on desktop — Godot synthesises it from touch on
 device, so one input path covers both.
+
+### A note on symbols
+
+Godot's fallback font is barely more than Latin-1. It has no `★`, no `✦`, and no
+geometric shapes at all — `●`, `○`, `■` and `◆` are all absent. Anything on
+screen that is not a letter therefore either has to be drawn (as the rating in
+`scripts/stars.gd` is) or has to be one of the few that survive: `•`, `·`, `°`,
+`†`. Check with `Font.has_char()` before typing a symbol into a label; it fails
+silently as a missing-glyph box, and only on export.
 
 ### Tests
 
