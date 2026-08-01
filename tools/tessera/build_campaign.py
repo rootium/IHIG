@@ -580,7 +580,7 @@ def tut_threshold():
     """One wall, and a slice next door where it does not exist."""
     ch = Chamber((7, 4, 5, 2))
     ch.name = "Threshold"
-    ch.hint = "The wall is only a wall in the slice you stand in. Press E to step ana."
+    ch.hint = "The wall is only a wall in the slice you stand in. Step ana to get past it."
     plate(ch, 1, 5, 1, 3, 0, 0)
     wall(ch, 3, 1, 3, 1, 0)
     plate(ch, 2, 4, 2, 2, 0, 1)      # the bypass, one step ana

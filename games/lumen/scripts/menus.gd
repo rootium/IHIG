@@ -320,6 +320,9 @@ func _draw_palette_preview(c: Control, item: Dictionary) -> void:
 ## diagonal to tap and waiting to see what happens.
 func _build_howto() -> Control:
 	var panel := _panel()
+	# The other screens let the solved board glow through, which is nice to look
+	# at. Here it reads as clutter behind the very shapes being explained.
+	panel.color = Color(0.02, 0.022, 0.045, 0.97)
 	var box := VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	box.offset_left = 26

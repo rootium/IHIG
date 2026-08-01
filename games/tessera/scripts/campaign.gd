@@ -13,7 +13,7 @@ const SOURCES := [
 """
 name: Threshold
 stratum: 1
-hint: The wall is only a wall in the slice you stand in. Press E to step ana.
+hint: The wall is only a wall in the slice you stand in. Step ana to get past it.
 rot: none
 par: 6
 size: 7 4 5 2

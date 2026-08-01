@@ -3,19 +3,20 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-	<meta name="theme-color" content="#06070f">
-	<meta name="description" content="Tessera — a puzzle game in four spatial dimensions. Walls are only walls in the slice you are standing in.">
+	<meta name="theme-color" content="#0d1128">
+	<meta name="description" content="Planet Hopper — an endless one-thumb orbit climber. Watch your fuel. Watch your air.">
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 	<title>$GODOT_PROJECT_NAME</title>
 	<style>
 		:root {
-			--void: #06070f;
-			--ink: #dfe8ff;
-			--dim: #7286b5;
-			--accent: #62d8ff;
-			--ana: #ff7bac;
+			--void: #0d1128;
+			--ink: #eef2ff;
+			--dim: #7581a8;
+			--accent: #5cc4e8;
+			--fuel: #f5a86b;
+			--oxy: #87cc87;
 		}
 		html, body { margin: 0; padding: 0; border: 0; height: 100%; }
 		body {
@@ -35,8 +36,7 @@
 			display: flex; flex-direction: column;
 			align-items: center; justify-content: center;
 			gap: 1.1rem;
-			background:
-				radial-gradient(120% 90% at 50% 38%, #141c3c 0%, #06070f 68%);
+			background: radial-gradient(120% 90% at 50% 38%, #1a2148 0%, #0d1128 68%);
 			transition: opacity .7s ease;
 		}
 		#boot.gone { opacity: 0; pointer-events: none; }
@@ -44,9 +44,9 @@
 		#glyph { width: 190px; height: 190px; display: block; }
 
 		#wordmark {
-			font-size: clamp(2rem, 8vw, 3.4rem);
-			letter-spacing: .42em;
-			text-indent: .42em;
+			font-size: clamp(1.6rem, 6.4vw, 2.7rem);
+			letter-spacing: .3em;
+			text-indent: .3em;
 			font-weight: 500;
 			margin: 0;
 		}
@@ -60,12 +60,12 @@
 		}
 		#bar {
 			width: min(340px, 72vw); height: 3px;
-			background: rgba(114, 134, 181, .22);
+			background: rgba(117, 129, 168, .22);
 			border-radius: 2px; overflow: hidden;
 		}
 		#fill {
 			height: 100%; width: 0%;
-			background: linear-gradient(90deg, var(--accent), var(--ana));
+			background: linear-gradient(90deg, var(--fuel), var(--accent));
 			transition: width .25s ease;
 		}
 		#note {
@@ -92,59 +92,88 @@
 </head>
 <body>
 	<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
-	<noscript>Tessera needs JavaScript.</noscript>
+	<noscript>Planet Hopper needs JavaScript.</noscript>
 
 	<div id="boot">
 		<canvas id="glyph" width="380" height="380"></canvas>
-		<h1 id="wordmark">TESSERA</h1>
-		<p id="tagline">a puzzle in four spatial dimensions</p>
+		<h1 id="wordmark">PLANET HOPPER</h1>
+		<p id="tagline">hop from orbit to orbit, and keep climbing</p>
 		<div id="bar"><div id="fill"></div></div>
-		<div id="note">waking the lattice…</div>
+		<div id="note">plotting the first orbit…</div>
 		<div id="fail"></div>
 	</div>
 
 	<div id="keys">
-		<b>WASD</b> move &nbsp;·&nbsp; <b>Q</b>/<b>E</b> kata / ana &nbsp;·&nbsp;
-		<b>F</b>/<b>G</b> turn into the fourth axis &nbsp;·&nbsp; <b>Z</b> undo &nbsp;·&nbsp; drag to orbit
+		<b>click</b> to break orbit &nbsp;·&nbsp; <b>hold</b> to burn &nbsp;·&nbsp; watch the fuel, watch the air
 	</div>
 
 	<script>
-	// The loading glyph is the same hypercube the game uses for the player:
-	// sixteen vertices, thirty-two edges, rotated in two 4D planes and
-	// projected down through the fourth dimension before the usual 3D one.
+	// The loading glyph is the core loop in miniature: settle into an orbit,
+	// leave it on the tangent, coast, and catch the next world higher up. The
+	// ship keeps climbing, so the animation scrolls downward forever.
 	(function () {
 		const cv = document.getElementById('glyph');
 		if (!cv || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 		const ctx = cv.getContext('2d');
-		const V = [], E = [];
-		for (let i = 0; i < 16; i++) {
-			V.push([(i & 1 ? 1 : -1), (i & 2 ? 1 : -1), (i & 4 ? 1 : -1), (i & 8 ? 1 : -1)]);
+		const S = cv.width, h = S / 2;
+
+		// Worlds are spaced up the column; the camera pans to follow the ship.
+		const GAP = 150, R = 30;
+		const worlds = [];
+		for (let i = 0; i < 6; i++) {
+			worlds.push({ y: -i * GAP, x: (i % 2 ? 1 : -1) * 42, oxy: i % 3 === 1 });
 		}
-		for (let i = 0; i < 16; i++) {
-			for (let b = 0; b < 4; b++) { const j = i ^ (1 << b); if (j > i) E.push([i, j]); }
-		}
+
 		let t = 0;
 		function frame() {
-			t += 0.0115;
-			const s = cv.width, h = s / 2;
-			ctx.clearRect(0, 0, s, s);
-			const ca = Math.cos(t), sa = Math.sin(t);
-			const cb = Math.cos(t * 0.63), sb = Math.sin(t * 0.63);
-			const P = V.map(([x, y, z, w]) => {
-				let X = x * ca + w * sa, Wc = w * ca - x * sa;      // rotate in XW
-				let Y = y * cb - z * sb, Z = y * sb + z * cb;        // and in YZ
-				const k4 = 2.6 / (2.6 - Wc * 0.85);
-				const k3 = 3.4 / (3.4 - Z * k4 * 0.6);
-				return [h + X * k4 * k3 * 44, h + Y * k4 * k3 * 44, k4];
-			});
-			ctx.lineCap = 'round';
-			for (const [a, b] of E) {
-				const p = P[a], q = P[b];
-				const d = (p[2] + q[2]) * 0.5;
-				ctx.strokeStyle = `rgba(${Math.round(98 + 60 * (d - 1))}, ${Math.round(216 - 40 * (d - 1))}, 255, ${0.20 + 0.55 * (d - 0.6)})`;
-				ctx.lineWidth = 1.0 + 2.0 * (d - 0.7);
-				ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
+			t += 0.0045;
+			const phase = t % 1;
+			const idx = Math.floor(t) % worlds.length;
+			const from = worlds[idx];
+			const to = worlds[(idx + 1) % worlds.length];
+			// A world's own y, unrolled so the column always climbs.
+			const baseY = (i) => -(Math.floor(t) + i) * GAP;
+
+			// Orbit for the first two thirds, then coast to the next world.
+			let sx, sy;
+			if (phase < 0.62) {
+				const a = phase / 0.62 * Math.PI * 2.4;
+				sx = from.x + Math.cos(a) * (R + 18);
+				sy = baseY(0) + Math.sin(a) * (R + 18);
+			} else {
+				const f = (phase - 0.62) / 0.38;
+				const e = f * f * (3 - 2 * f);
+				sx = from.x + (to.x - from.x) * e;
+				sy = baseY(0) + (baseY(1) - baseY(0)) * e;
 			}
+			const camY = sy;
+
+			ctx.clearRect(0, 0, S, S);
+			ctx.save();
+			ctx.translate(h, h);
+
+			for (let i = -1; i < 4; i++) {
+				const w = worlds[((idx + i) % worlds.length + worlds.length) % worlds.length];
+				const wy = baseY(i) - camY;
+				if (wy < -h - 60 || wy > h + 60) continue;
+				const col = w.oxy ? 'rgba(135,204,135,' : 'rgba(168,140,245,';
+				ctx.fillStyle = col + '.16)';
+				ctx.beginPath(); ctx.arc(w.x, wy, R * 1.5, 0, Math.PI * 2); ctx.fill();
+				ctx.fillStyle = col + '.95)';
+				ctx.beginPath(); ctx.arc(w.x, wy, R, 0, Math.PI * 2); ctx.fill();
+				ctx.strokeStyle = 'rgba(92,196,232,.25)';
+				ctx.setLineDash([4, 6]); ctx.lineWidth = 1.5;
+				ctx.beginPath(); ctx.arc(w.x, wy, R + 18, 0, Math.PI * 2); ctx.stroke();
+				ctx.setLineDash([]);
+			}
+
+			// The ship, nose along its own motion.
+			const sxr = sx, syr = sy - camY;
+			ctx.fillStyle = 'rgba(240,246,255,.98)';
+			ctx.beginPath(); ctx.arc(sxr, syr, 5.5, 0, Math.PI * 2); ctx.fill();
+			ctx.fillStyle = 'rgba(245,168,107,.6)';
+			ctx.beginPath(); ctx.arc(sxr, syr + 9, 3.2, 0, Math.PI * 2); ctx.fill();
+			ctx.restore();
 			requestAnimationFrame(frame);
 		}
 		frame();
@@ -179,13 +208,13 @@ const engine = new Engine(GODOT_CONFIG);
 		console.error(err);
 		fail.style.display = 'block';
 		fail.textContent = (err instanceof Error) ? err.message : String(err);
-		note.textContent = 'the lattice did not open';
+		note.textContent = 'the launch was scrubbed';
 		done = true;
 	}
 
 	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
 	if (missing.length !== 0) {
-		fatal('This browser is missing features Tessera needs:\n\n' + missing.join('\n')
+		fatal('This browser is missing features Planet Hopper needs:\n\n' + missing.join('\n')
 			+ '\n\nA current Chrome, Edge, Firefox or Safari should work.');
 		return;
 	}
@@ -193,9 +222,9 @@ const engine = new Engine(GODOT_CONFIG);
 	// The engine is a large download the first time. Say so, rather than
 	// leaving a bar that looks stuck.
 	const hints = [
-		'waking the lattice…',
+		'plotting the first orbit…',
 		'this is a one-time download; it is cached after the first visit',
-		'walls are only walls in the slice you are standing in',
+		'oxygen only refills around the green worlds',
 	];
 	let hint = 0;
 	const cycle = setInterval(() => {

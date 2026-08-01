@@ -337,7 +337,9 @@ func _refresh_stats() -> void:
 		c.queue_free()
 	for h in Cfg.HUES.size():
 		if (game.keys & (1 << h)) != 0:
-			var chip := _lab("◆", 19, Cfg.HUES[h])
+			# ◆ is in JetBrains Mono but not in Space Grotesk, which is the
+			# default here and draws it as a missing-glyph box.
+			var chip := _lab("◆", 19, Cfg.HUES[h], _mono)
 			_keys_box.add_child(chip)
 
 	_scope.queue_redraw()
@@ -461,13 +463,34 @@ func _fill_select() -> void:
 
 
 func _build_howto() -> Control:
-	var p := _pane()
-	var v := _column(p, 10)
+	# Not _column: the instructions are taller than a landscape phone, and in a
+	# plain scrolling column BEGIN rides along at the bottom of the scroll. A
+	# player who does not think to scroll the very first screen the game shows
+	# them is then stuck on it with no way forward. So the text scrolls and the
+	# buttons are pinned under it.
+	var p := _pane(0.94)
+	var m := MarginContainer.new()
+	m.set_anchors_preset(Control.PRESET_FULL_RECT)
+	m.add_theme_constant_override("margin_left", 40)
+	m.add_theme_constant_override("margin_right", 40)
+	m.add_theme_constant_override("margin_top", 20)
+	m.add_theme_constant_override("margin_bottom", 20)
+	p.add_child(m)
+
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	m.add_child(v)
+
 	v.add_child(_lab("FOUR DIRECTIONS, NOT THREE", 34, Cfg.UI_TEXT))
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	v.add_child(scroll)
+
 	_howto_body = _rich(19)
-	_howto_body.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_howto_body.custom_minimum_size = Vector2(760, 380)
-	v.add_child(_howto_body)
+	_howto_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_howto_body)
 	_refresh_howto()
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -744,7 +767,7 @@ func _build_touch() -> void:
 	pad.add_child(_pad("↑", func(): game.walk_screen(0, -1), Cfg.UI_ACCENT))
 	pad.add_child(_spacer(0))
 	pad.add_child(_pad("←", func(): game.walk_screen(-1, 0), Cfg.UI_ACCENT))
-	pad.add_child(_pad("⟳", func(): game.spin_camera(1), Cfg.UI_DIM, 22))
+	pad.add_child(_pad("VIEW", func(): game.spin_camera(1), Cfg.UI_DIM, 13))
 	pad.add_child(_pad("→", func(): game.walk_screen(1, 0), Cfg.UI_ACCENT))
 	pad.add_child(_spacer(0))
 	pad.add_child(_pad("↓", func(): game.walk_screen(0, 1), Cfg.UI_ACCENT))
@@ -779,12 +802,15 @@ func _build_touch() -> void:
 	r1.add_child(_pad("ANA", func(): game.try_shift(1), Cfg.ANA, 15))
 	right.add_child(r1)
 
+	# Named rather than drawn as arrows: Space Grotesk has no ⇅ or ⇄ and renders
+	# them as tofu, and in any case a glyph cannot say *which* visible axis is
+	# about to be swapped out. These match the two the axis readout names.
 	right.add_child(_caption("TURN  ·  swap an axis in"))
 	var r2 := HBoxContainer.new()
 	r2.add_theme_constant_override("separation", 6)
 	r2.alignment = BoxContainer.ALIGNMENT_END
-	r2.add_child(_pad("⇅", func(): game.try_rotate(2, 1), Cfg.C_GOAL_EDGE, 30))
-	r2.add_child(_pad("⇄", func(): game.try_rotate(0, 1), Cfg.C_FIELD_EDGE, 30))
+	r2.add_child(_pad("DEPTH", func(): game.try_rotate(2, 1), Cfg.C_GOAL_EDGE, 14))
+	r2.add_child(_pad("SIDE", func(): game.try_rotate(0, 1), Cfg.C_FIELD_EDGE, 14))
 	right.add_child(r2)
 
 
