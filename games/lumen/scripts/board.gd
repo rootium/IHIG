@@ -216,69 +216,24 @@ func _draw_beams() -> void:
 			draw_multiline(pts, Color(1, 1, 1, hot), core * 0.34, true)
 
 
+## Each piece is drawn by Pieces, from a centre and a cell size, so that the
+## legend on the how-to screen can draw the very same shapes without a board
+## under it. What is left here is only the translation from a cell index to
+## those two numbers.
+
 func _draw_wall(cell: int) -> void:
-	var r := _cell * 0.36
-	var mid := center(cell)
-	var col: Color = palette.get("wall", LM.C_WALL)
-	draw_rect(Rect2(mid - Vector2(r, r), Vector2(r, r) * 2.0), col)
-	draw_rect(Rect2(mid - Vector2(r, r) * 0.62, Vector2(r, r) * 1.24), col.darkened(0.25))
+	Pieces.wall(self, center(cell), _cell, palette)
 
 
-## Both pieces are their diagonal. A mirror draws it solid; a splitter draws it
-## see-through with solid ends — a half-silvered mirror, which is exactly what
-## it behaves like. The ends stay opaque so the angle is still readable at a
-## glance, since the angle is the only thing a tap changes.
 func _draw_mirror(cell: int, split: bool) -> void:
-	var mid := center(cell)
-	var k := _cell * 0.33
-	var d := Vector2(k, -k) if grid.orient[cell] == 0 else Vector2(k, k)
-	var col: Color = optic.get("piece", Color(0.86, 0.90, 1.0))
-	var wide := maxf(_cell * 0.10, 3.0)
-
-	draw_circle(mid, _cell * 0.42, Color(1, 1, 1, 0.035))
-	if split:
-		draw_line(mid - d, mid + d, Color(col.r, col.g, col.b, 0.34), wide, true)
-		draw_circle(mid - d, wide * 0.66, col)
-		draw_circle(mid + d, wide * 0.66, col)
-	else:
-		draw_line(mid - d, mid + d, Color(0, 0, 0, 0.35), wide + 4.0, true)
-		draw_line(mid - d, mid + d, col, wide, true)
-		# One bright edge, so which face the light strikes is legible.
-		draw_line(mid - d, mid + d, Color(1, 1, 1, 0.35), wide * 0.3, true)
+	Pieces.mirror(self, center(cell), _cell, int(grid.orient[cell]), split, optic)
 
 
 func _draw_source(cell: int) -> void:
-	var mid := center(cell)
-	var col := LM.mix(int(grid.tint[cell]), palette)
-	var r := _cell * 0.30
-	draw_circle(mid, r * 1.7, Color(col.r, col.g, col.b, 0.14))
-	draw_rect(Rect2(mid - Vector2(r, r), Vector2(r, r) * 2.0), col)
-	draw_rect(Rect2(mid - Vector2(r, r) * 0.5, Vector2(r, r)), Color(1, 1, 1, 0.75))
-	# The nozzle says which way it fires without the player having to guess.
-	var v := Grid.vec(int(grid.orient[cell]))
-	var n := Vector2(-v.y, v.x)
-	draw_colored_polygon(PackedVector2Array([
-		mid + v * (r * 2.1), mid + v * r + n * r * 0.62, mid + v * r - n * r * 0.62]), col)
+	Pieces.source(self, center(cell), _cell, int(grid.orient[cell]),
+		LM.mix(int(grid.tint[cell]), palette))
 
 
-## Three states, and the difference between them is the whole read of the
-## board: an empty ring is waiting, a ring with a mismatched dot inside is being
-## fed the wrong colour, and a filled disc is done. The wrong-colour state
-## matters most — it is the game telling you *which* colour arrived, which is
-## the only clue a mixing puzzle can give you.
 func _draw_target(cell: int) -> void:
-	var mid := center(cell)
-	var want := int(grid.tint[cell])
-	var got := int(recv.get(cell, 0))
-	var col := LM.mix(want, palette)
-	var r := _cell * 0.30
-
-	if got == want:
-		draw_circle(mid, r, col)
-		draw_circle(mid, r * 0.42, Color(1, 1, 1, 0.85))
-		return
-
-	draw_arc(mid, r, 0.0, TAU, 32, Color(col.r, col.g, col.b, 0.85), maxf(_cell * 0.055, 2.0), true)
-	if got != 0:
-		var have := LM.mix(got, palette)
-		draw_circle(mid, r * 0.45, Color(have.r, have.g, have.b, 0.9))
+	Pieces.target(self, center(cell), _cell, int(grid.tint[cell]),
+		int(recv.get(cell, 0)), palette)

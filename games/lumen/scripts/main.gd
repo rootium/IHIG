@@ -66,7 +66,14 @@ func to_title() -> void:
 	board.interactive = false
 	board.refresh()
 	hud.visible = false
-	menus.show_title()
+	# A first-time player meets the pieces before the board, rather than being
+	# dropped onto a grid of shapes nothing has named.
+	if SaveData.seen_howto:
+		menus.show_title()
+	else:
+		SaveData.seen_howto = true
+		SaveData.save_game()
+		menus.show_howto()
 
 
 func start_level(n: int) -> void:
@@ -99,6 +106,7 @@ func _apply_skin() -> void:
 	RenderingServer.set_default_clear_color(palette.get("bg", LM.C_BG))
 	board.palette = palette
 	board.optic = Skins.optic(SaveData.optic_id)
+	menus.set_skin(palette, board.optic)
 
 
 func _relayout() -> void:

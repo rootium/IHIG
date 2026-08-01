@@ -15,6 +15,7 @@ static var owned_optics: Array[String] = ["standard"]
 static var owned_palettes: Array[String] = ["darkroom"]
 static var optic_id: String = "standard"
 static var palette_id: String = "darkroom"
+static var seen_howto: bool = false
 
 static var _loaded := false
 
@@ -39,6 +40,9 @@ static func load_game() -> void:
 	stars = int(d.get("stars", 0))
 	optic_id = str(d.get("optic_id", "standard"))
 	palette_id = str(d.get("palette_id", "darkroom"))
+	# A save from before the how-to screen existed belongs to someone who has
+	# already played, so do not interrupt them with it.
+	seen_howto = bool(d.get("seen_howto", true))
 	owned_optics = _to_ids(d.get("owned_optics", []), "standard")
 	owned_palettes = _to_ids(d.get("owned_palettes", []), "darkroom")
 	# A save written by an older build may not know about the equipped item.
@@ -60,6 +64,7 @@ static func save_game() -> void:
 		"stars": stars,
 		"optic_id": optic_id,
 		"palette_id": palette_id,
+		"seen_howto": seen_howto,
 		"owned_optics": owned_optics,
 		"owned_palettes": owned_palettes,
 	}))
