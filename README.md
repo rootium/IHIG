@@ -45,6 +45,26 @@ templates. Output lands in `build/`.
 Requirements on the host: `curl`, `unzip`, `python3`, and for the Android target
 also `java`, `javac` and `keytool` (a JDK 17+ is fine).
 
+## Tests
+
+```sh
+tools/run_tests.sh                       # every game that has a smoke test
+tools/run_tests.sh games/dunk-rush       # just one
+FRAMES=60000 tools/run_tests.sh          # longer soak
+```
+
+Planet Hopper and Dunk Rush each ship a headless autopilot that plays itself
+through the real game code for a few simulated minutes, restarting on each
+death. These are soak tests rather than assertion suites: they exist to prove
+that generation, culling, collision, prediction and the draw calls survive a
+long run — and, because each autopilot steers using only that game's own
+on-screen preview, that the preview is enough to play the game.
+
+The runner provisions just the Godot engine, not the export templates, so it is
+far cheaper than a build. It scrapes the log rather than trusting the exit code,
+because Godot exits 0 after a `--script` run that logged script errors. Games
+without a `tests/smoke_test.gd` are skipped.
+
 ## The web build and GitHub Pages
 
 `docs/` holds the built site. `.github/workflows/pages.yml` mirrors it onto the
@@ -127,6 +147,7 @@ games/<name>/            a Godot 4 project, one per game
 tools/build.sh           provisions the toolchain and exports any target
 tools/build_android.sh   the Android path, including signing
 tools/build_site.sh      rebuilds every web export into docs/
+tools/run_tests.sh       provisions Godot and runs every game's smoke test
 tools/apksigner-shim/    minimal apksigner used when the Android SDK is unreachable
 tools/tessera/           Tessera's level generator, solver and music renderer
 docs/                    the built site, served by GitHub Pages
