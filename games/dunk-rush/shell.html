@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<meta name="theme-color" content="#0e1019">
+	<meta name="description" content="Dunk Rush — an endless one-thumb dunk climber. Aim the jump, beat the shot clock, never touch the floor.">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<title>$GODOT_PROJECT_NAME</title>
+	<style>
+		:root {
+			--void: #0e1019;
+			--ink: #eef2ff;
+			--dim: #7f88a6;
+			--accent: #fa7a33;
+			--gold: #ffd166;
+			--cyan: #5ce0f0;
+		}
+		html, body { margin: 0; padding: 0; border: 0; height: 100%; }
+		body {
+			background: var(--void);
+			color: var(--ink);
+			overflow: hidden;
+			touch-action: none;
+			overscroll-behavior: none;
+			font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+			-webkit-font-smoothing: antialiased;
+		}
+		#canvas { display: block; width: 100%; height: 100%; }
+		#canvas:focus { outline: none; }
+
+		#boot {
+			position: fixed; inset: 0; z-index: 10;
+			display: flex; flex-direction: column;
+			align-items: center; justify-content: center;
+			gap: 1.1rem;
+			background: radial-gradient(120% 90% at 50% 38%, #1d2135 0%, #0e1019 68%);
+			transition: opacity .7s ease;
+		}
+		#boot.gone { opacity: 0; pointer-events: none; }
+
+		#glyph { width: 190px; height: 190px; display: block; }
+
+		#wordmark {
+			font-size: clamp(1.6rem, 6.4vw, 2.7rem);
+			letter-spacing: .3em;
+			text-indent: .3em;
+			font-weight: 500;
+			margin: 0;
+		}
+		#tagline {
+			color: var(--accent);
+			font-size: clamp(.78rem, 2.9vw, 1rem);
+			letter-spacing: .06em;
+			margin: -.4rem 0 .3rem;
+			text-align: center;
+			padding: 0 1.2rem;
+		}
+		#bar {
+			width: min(340px, 72vw); height: 3px;
+			background: rgba(127, 136, 166, .22);
+			border-radius: 2px; overflow: hidden;
+		}
+		#fill {
+			height: 100%; width: 0%;
+			background: linear-gradient(90deg, var(--accent), var(--gold));
+			transition: width .25s ease;
+		}
+		#note {
+			color: var(--dim); font-size: .78rem; letter-spacing: .05em;
+			min-height: 1.2em; text-align: center; padding: 0 1.5rem;
+		}
+		#fail {
+			display: none; max-width: 34rem; margin: 0 1.5rem; padding: 1rem 1.2rem;
+			border: 1px solid #9b3943; background: #2a1620; border-radius: .5rem;
+			color: #ffd8de; font-size: .85rem; line-height: 1.5; white-space: pre-wrap;
+		}
+		#keys {
+			position: fixed; left: 0; right: 0; bottom: 1.1rem; z-index: 9;
+			text-align: center; color: var(--dim); font-size: .74rem;
+			letter-spacing: .09em; pointer-events: none;
+			transition: opacity 1s ease;
+		}
+		#keys b { color: var(--accent); font-weight: 600; }
+		#keys.gone { opacity: 0; }
+		@media (max-width: 620px) { #keys { display: none; } }
+		@media (prefers-reduced-motion: reduce) { #glyph { display: none; } }
+	</style>
+	$GODOT_HEAD_INCLUDE
+</head>
+<body>
+	<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
+	<noscript>Dunk Rush needs JavaScript.</noscript>
+
+	<div id="boot">
+		<canvas id="glyph" width="380" height="380"></canvas>
+		<h1 id="wordmark">DUNK RUSH</h1>
+		<p id="tagline">aim the jump, beat the shot clock</p>
+		<div id="bar"><div id="fill"></div></div>
+		<div id="note">warming up…</div>
+		<div id="fail"></div>
+	</div>
+
+	<div id="keys">
+		<b>drag back</b> to aim &nbsp;·&nbsp; <b>release</b> to jump &nbsp;·&nbsp; <b>hold</b> in the air to hang
+	</div>
+
+	<script>
+	// The loading glyph is the core loop in miniature: hang from a rim, leap on
+	// a previewed arc, drop through the next basket higher up. The stack keeps
+	// climbing, so the animation scrolls downward forever.
+	(function () {
+		const cv = document.getElementById('glyph');
+		if (!cv || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		const ctx = cv.getContext('2d');
+		const S = cv.width, h = S / 2;
+
+		// Rims are spaced up the column; the camera pans to follow the player.
+		const GAP = 132, HALF = 34;
+		const rims = [];
+		for (let i = 0; i < 6; i++) {
+			rims.push({ y: -i * GAP, x: (i % 2 ? 1 : -1) * 46 });
+		}
+
+		let t = 0;
+		function frame() {
+			t += 0.005;
+			const phase = t % 1;
+			const idx = Math.floor(t) % rims.length;
+			const from = rims[idx];
+			const to = rims[(idx + 1) % rims.length];
+			// A rim's own y, unrolled so the column always climbs.
+			const baseY = (i) => -(Math.floor(t) + i) * GAP;
+
+			// Hang for the first third, then fly the arc to the next rim.
+			let sx, sy, f = 0;
+			if (phase < 0.34) {
+				sx = from.x;
+				sy = baseY(0) + 11;
+			} else {
+				f = (phase - 0.34) / 0.66;
+				sx = from.x + (to.x - from.x) * f;
+				// A real parabola: linear across, minus the arch.
+				sy = baseY(0) + (baseY(1) - baseY(0)) * f - Math.sin(Math.PI * f) * 58;
+			}
+			const camY = sy;
+
+			ctx.clearRect(0, 0, S, S);
+			ctx.save();
+			ctx.translate(h, h);
+
+			// The previewed arc, dotted, exactly as the game draws it.
+			if (phase >= 0.34) {
+				for (let k = 1; k <= 14; k++) {
+					const g = f + (k / 14) * (1 - f);
+					const px = from.x + (to.x - from.x) * g;
+					const py = baseY(0) + (baseY(1) - baseY(0)) * g
+						- Math.sin(Math.PI * g) * 58 - camY;
+					ctx.fillStyle = 'rgba(255,209,102,' + (0.5 * (1 - k / 16)).toFixed(3) + ')';
+					ctx.beginPath(); ctx.arc(px, py, 2.4, 0, Math.PI * 2); ctx.fill();
+				}
+			}
+
+			for (let i = -1; i < 4; i++) {
+				const r = rims[((idx + i) % rims.length + rims.length) % rims.length];
+				const ry = baseY(i) - camY;
+				if (ry < -h - 60 || ry > h + 60) continue;
+				const isNext = i === 1;
+				// Backboard, mounted on the outward side like the game's.
+				const side = r.x >= 0 ? 1 : -1;
+				ctx.fillStyle = 'rgba(220,227,245,.55)';
+				ctx.fillRect(r.x + side * HALF, ry - 40, side * 4, 40);
+				// The rim itself, lit when it is the one being aimed at.
+				ctx.strokeStyle = isNext ? 'rgba(255,209,102,.98)' : 'rgba(250,122,51,.9)';
+				ctx.lineWidth = 4; ctx.lineCap = 'round';
+				ctx.beginPath();
+				ctx.moveTo(r.x - HALF, ry); ctx.lineTo(r.x + HALF, ry); ctx.stroke();
+				// Net.
+				ctx.strokeStyle = 'rgba(238,242,255,.30)'; ctx.lineWidth = 1;
+				for (let n = 0; n <= 4; n++) {
+					const top = r.x - HALF + (n / 4) * HALF * 2;
+					ctx.beginPath();
+					ctx.moveTo(top, ry + 2);
+					ctx.lineTo(r.x + (top - r.x) * 0.42, ry + 21);
+					ctx.stroke();
+				}
+			}
+
+			// The player, with the ball above their hands.
+			const syr = sy - camY;
+			ctx.fillStyle = 'rgba(92,224,240,.95)';
+			ctx.beginPath(); ctx.arc(sx, syr + 4, 5.5, 0, Math.PI * 2); ctx.fill();
+			ctx.fillStyle = 'rgba(245,122,51,.98)';
+			ctx.beginPath(); ctx.arc(sx + 7, syr - 8, 4.6, 0, Math.PI * 2); ctx.fill();
+			ctx.restore();
+			requestAnimationFrame(frame);
+		}
+		frame();
+	}());
+	</script>
+
+	<script src="$GODOT_URL"></script>
+	<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+// Every game in this repo exports the *same* 37 MB engine binary — the pck is
+// the only part that differs (tens of kilobytes). So the wasm is served once
+// from /engine and every game points at it: whichever game you open first pays
+// for the engine, and the others then start from the browser cache.
+GODOT_CONFIG.mainPack = 'index.pck';
+GODOT_CONFIG.executable = '../engine/godot';
+if (GODOT_CONFIG.fileSizes && GODOT_CONFIG.fileSizes['index.wasm']) {
+	GODOT_CONFIG.fileSizes['../engine/godot.wasm'] = GODOT_CONFIG.fileSizes['index.wasm'];
+}
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	const boot = document.getElementById('boot');
+	const fill = document.getElementById('fill');
+	const note = document.getElementById('note');
+	const fail = document.getElementById('fail');
+	const keys = document.getElementById('keys');
+
+	let done = false;
+
+	function fatal(err) {
+		console.error(err);
+		fail.style.display = 'block';
+		fail.textContent = (err instanceof Error) ? err.message : String(err);
+		note.textContent = 'the game was called off';
+		done = true;
+	}
+
+	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	if (missing.length !== 0) {
+		fatal('This browser is missing features Dunk Rush needs:\n\n' + missing.join('\n')
+			+ '\n\nA current Chrome, Edge, Firefox or Safari should work.');
+		return;
+	}
+
+	// The engine is a large download the first time. Say so, rather than
+	// leaving a bar that looks stuck.
+	const hints = [
+		'warming up…',
+		'this is a one-time download; it is cached after the first visit',
+		'the dotted line is exactly where you land — it turns red on iron',
+	];
+	let hint = 0;
+	const cycle = setInterval(() => {
+		if (done) { clearInterval(cycle); return; }
+		hint = (hint + 1) % hints.length;
+		note.textContent = hints[hint];
+	}, 4200);
+
+	engine.startGame({
+		onProgress: function (current, total) {
+			if (current > 0 && total > 0) {
+				fill.style.width = Math.round(100 * current / total) + '%';
+			}
+		},
+	}).then(() => {
+		done = true;
+		clearInterval(cycle);
+		fill.style.width = '100%';
+		boot.classList.add('gone');
+		setTimeout(() => boot.remove(), 800);
+		setTimeout(() => keys.classList.add('gone'), 9000);
+		document.getElementById('canvas').focus();
+	}, fatal);
+}());
+	</script>
+</body>
+</html>

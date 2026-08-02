@@ -2,15 +2,15 @@
 #
 # Rebuilds the web exports under docs/, which is what GitHub Pages serves.
 #
-#   tools/build_site.sh              # all three games
+#   tools/build_site.sh              # every game
 #   tools/build_site.sh lumen        # just one
 #
 # Why this exists rather than a `cp -r build/web/. docs/`:
 #
 # Every game in this repo exports a byte-identical 37 MB index.wasm — that file
 # is the Godot engine, not the game. The game is the pck beside it, which is
-# tens of kilobytes. Three self-contained copies would mean a visitor who tries
-# a second game downloads the same 37 MB a second time.
+# tens of kilobytes. Self-contained copies would mean a visitor who tries a
+# second game downloads the same 37 MB a second time.
 #
 # So docs/ keeps ONE copy, in docs/engine/, and each game's shell is built to
 # point at it (see the GODOT_CONFIG block in each games/*/shell.html). The two
@@ -33,7 +33,7 @@ GODOT_BIN="${GODOT_BIN:-$TOOLCHAIN/godot/Godot_v${GODOT_VERSION}_linux.x86_64}"
 
 GAMES=("$@")
 if [[ ${#GAMES[@]} -eq 0 ]]; then
-	GAMES=(tessera lumen planet-hopper)
+	GAMES=(tessera lumen planet-hopper dunk-rush)
 fi
 
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }

@@ -55,13 +55,13 @@
 		<img src="icon.svg" alt="">
 		<h1>DOWNLOADS</h1>
 	</div>
-	<p class="tag">for the three games in IHIG</p>
+	<p class="tag">for the four games in IHIG</p>
 
-	<p>All three play in the browser with nothing to install — that is the easiest
+	<p>All four play in the browser with nothing to install — that is the easiest
 	way in, and it is the same build.</p>
 
 	<div class="cards">
-		<a class="card play" href="../"><b>Play in the browser</b><span>all three games, no install</span></a>
+		<a class="card play" href="../"><b>Play in the browser</b><span>all four games, no install</span></a>
 	</div>
 
 	<h2>Android</h2>
@@ -72,13 +72,13 @@
 	sideloading but is not a Play Store release. Android will ask you to allow
 	installation from your browser the first time.</p>
 
-	<h2>Lumen, Planet Hopper, and desktop</h2>
+	<h2>Lumen, Planet Hopper, Dunk Rush, and desktop</h2>
 	<p>These are not published as binaries here — an APK is about 26 MB and a
 	desktop build closer to a hundred, which is more than a git repository should
 	carry for something that is one command away from a clone:</p>
 <pre>git clone https://github.com/rootium/IHIG.git
 cd IHIG
-tools/build_android.sh games/lumen          # or games/planet-hopper
+tools/build_android.sh games/lumen          # or planet-hopper, dunk-rush
 tools/build.sh games/tessera linux windows  # desktop</pre>
 	<p>The script provisions everything it needs on first run and is safe to
 	re-run. Output lands in <code>build/</code>.</p>
