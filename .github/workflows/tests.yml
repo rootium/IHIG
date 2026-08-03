@@ -1,0 +1,32 @@
+name: Tests
+
+# Runs every game's headless smoke test on pull requests.
+#
+# This deliberately does not touch pages.yml. Publishing is a mirror of docs/
+# onto gh-pages and needs nothing built; these tests need the Godot engine but
+# not the 1.3 GB of export templates, because testing is not building. Keeping
+# the two jobs apart is what lets this run on every pull request in a couple of
+# minutes while the site keeps deploying with no build step at all.
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The engine only. Export templates are a build concern and are never
+      # needed here, which is most of why this job is cheap.
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ~/.ihig-toolchain/godot
+          key: godot-4.6.2-stable-linux-x86_64
+
+      # Flies an autopilot through the real game code for a few simulated
+      # minutes per game, and fails on any script error. Games without a
+      # tests/smoke_test.gd are skipped.
+      - name: Smoke tests
+        run: tools/run_tests.sh

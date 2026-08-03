@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#06070f">
-<meta name="description" content="IHIG — three small games you can play in the browser: Tessera, Lumen and Planet Hopper.">
-<meta property="og:title" content="IHIG — three small games">
+<meta name="description" content="IHIG — four small games you can play in the browser: Tessera, Lumen, Planet Hopper and Dunk Rush.">
+<meta property="og:title" content="IHIG — four small games">
 <meta property="og:description" content="Tessera, Lumen and Planet Hopper. Playable in the browser, no install.">
 <meta property="og:type" content="website">
-<title>IHIG — three small games</title>
+<title>IHIG — four small games</title>
 <style>
 	:root {
 		--void: #06070f;
@@ -19,6 +19,7 @@
 		--tessera: #62d8ff;
 		--lumen: #ff6b7f;
 		--hopper: #87cc87;
+		--dunk: #fa7a33;
 	}
 	* { box-sizing: border-box; }
 	html, body { margin: 0; padding: 0; }
@@ -75,6 +76,7 @@
 	.game.t h2, .game.t .tag { color: var(--tessera); }
 	.game.l h2, .game.l .tag { color: var(--lumen); }
 	.game.h h2, .game.h .tag { color: var(--hopper); }
+	.game.d h2, .game.d .tag { color: var(--dunk); }
 	.game h2 { color: var(--ink); }
 
 	dl.facts {
@@ -99,6 +101,8 @@
 	.l a.btn.play:hover { background: rgba(255,107,127,.12); }
 	.h a.btn.play { border-color: var(--hopper); color: var(--hopper); }
 	.h a.btn.play:hover { background: rgba(135,204,135,.12); }
+	.d a.btn.play { border-color: var(--dunk); color: var(--dunk); }
+	.d a.btn.play:hover { background: rgba(250,122,51,.12); }
 
 	.note {
 		margin: 2.5rem 0 0; padding: 1.1rem 1.3rem;
@@ -115,7 +119,7 @@
 <main>
 	<header>
 		<h1>IHIG</h1>
-		<p class="sub">Three small games. <b>They run in the browser</b> — nothing to install.</p>
+		<p class="sub">Four small games. <b>They run in the browser</b> — nothing to install.</p>
 	</header>
 
 	<section class="game t wide">
@@ -170,10 +174,27 @@
 		</div>
 	</section>
 
+	<section class="game d">
+		<img class="shot" src="shots/dunk-rush.png" width="420" height="760" alt="Dunk Rush: a player hanging from a basketball rim with a dotted arc curving up to a higher basket, whose rim is lit gold, and a shot clock across the top.">
+		<div>
+			<h2>Dunk Rush</h2>
+			<p class="tag">aim the jump, beat the shot clock</p>
+			<p>You hang from a rim and jump to the next basket up. Drag back to aim and a dotted line shows you exactly where you will land — it bounces off backboards, so banking is a shot you can aim on purpose, and it turns red and stops where the line would hit iron. The shot clock resets only when you score, so there is no parking on a rim to line up the perfect jump.</p>
+			<dl class="facts">
+				<dt>Run</dt><dd>endless — the rims get narrower and start sliding as you climb</dd>
+				<dt>Controls</dt><dd>one thumb — drag back to aim, hold in the air to hang</dd>
+				<dt>Scoring</dt><dd>swishes and bank shots pay extra; clipping the rim costs the combo</dd>
+			</dl>
+			<div class="row">
+				<a class="btn play" href="dunk-rush/">Play in the browser</a>
+			</div>
+		</div>
+	</section>
+
 	<p class="note">
-		<b>The first game you open takes a moment.</b> All three are built on the same
+		<b>The first game you open takes a moment.</b> All four are built on the same
 		engine, and that engine is a single large download shared between them — so
-		whichever one you try first pays for it, and the other two then start almost
+		whichever one you try first pays for it, and the rest then start almost
 		at once. Everything runs locally in your browser; nothing is uploaded and
 		there is no account.
 	</p>

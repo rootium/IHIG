@@ -13,18 +13,20 @@ shared between them but the build tooling — shared code can move into a
 | [Tessera](games/tessera) | `games/tessera` | web · Android · Windows · Linux | Playable — a puzzle game in four spatial dimensions |
 | [Lumen](games/lumen) | `games/lumen` | web · Android | Playable (working title) — one-thumb light-routing puzzle |
 | [Planet Hopper](games/planet-hopper) | `games/planet-hopper` | web · Android | Playable (working title) — endless one-thumb orbit climber |
+| [Dunk Rush](games/dunk-rush) | `games/dunk-rush` | web · Android | Playable (working title) — endless one-thumb dunk climber |
 
-**[▶ Play all three in the browser](https://rootium.github.io/IHIG/)** ·
+**[▶ Play all four in the browser](https://rootium.github.io/IHIG/)** ·
 [downloads](https://rootium.github.io/IHIG/get/)
 
 On taking these to YouTube Playables, and the one measurement that decides
 whether Godot can go there at all, see [PLAYABLES.md](PLAYABLES.md).
 
-The three are deliberately not the same kind of game. Planet Hopper is
-continuous, physical and played on reflex. Lumen is a still board you think at.
-Tessera is the big one: a 3D game whose world has a fourth spatial axis you can
-step along and rotate into view, forty-three chambers deep, shipping to the web
-and desktop as well as to a phone.
+They are deliberately not the same kind of game. Planet Hopper and Dunk Rush are
+continuous, physical and played on reflex — and they answer the same design
+question two different ways, which is the reason to have both. Lumen is a still
+board you think at. Tessera is the big one: a 3D game whose world has a fourth
+spatial axis you can step along and rotate into view, forty-three chambers deep,
+shipping to the web and desktop as well as to a phone.
 
 ## Building
 
@@ -43,6 +45,26 @@ templates. Output lands in `build/`.
 Requirements on the host: `curl`, `unzip`, `python3`, and for the Android target
 also `java`, `javac` and `keytool` (a JDK 17+ is fine).
 
+## Tests
+
+```sh
+tools/run_tests.sh                       # every game that has a smoke test
+tools/run_tests.sh games/dunk-rush       # just one
+FRAMES=60000 tools/run_tests.sh          # longer soak
+```
+
+Planet Hopper and Dunk Rush each ship a headless autopilot that plays itself
+through the real game code for a few simulated minutes, restarting on each
+death. These are soak tests rather than assertion suites: they exist to prove
+that generation, culling, collision, prediction and the draw calls survive a
+long run — and, because each autopilot steers using only that game's own
+on-screen preview, that the preview is enough to play the game.
+
+The runner provisions just the Godot engine, not the export templates, so it is
+far cheaper than a build. It scrapes the log rather than trusting the exit code,
+because Godot exits 0 after a `--script` run that logged script errors. Games
+without a `tests/smoke_test.gd` are skipped.
+
 ## The web build and GitHub Pages
 
 `docs/` holds the built site. `.github/workflows/pages.yml` mirrors it onto the
@@ -50,8 +72,8 @@ also `java`, `javac` and `keytool` (a JDK 17+ is fine).
 [rootium.github.io/IHIG](https://rootium.github.io/IHIG/).
 
 ```
-docs/index.html      the landing page, listing all three games
-docs/engine/         ONE copy of the Godot runtime, shared by all three
+docs/index.html      the landing page, listing every game
+docs/engine/         ONE copy of the Godot runtime, shared by all of them
 docs/<game>/         a game: its page, its loader and its pck
 docs/get/            downloads
 docs/shots/          screenshots used by the landing page
@@ -59,8 +81,8 @@ docs/shots/          screenshots used by the landing page
 
 **The engine is shared on purpose.** Every game here exports a byte-identical
 37 MB `index.wasm` — that file is the engine, not the game; the game is the
-`pck` beside it, which is tens of kilobytes. Three self-contained copies would
-charge a visitor 37 MB again for the second game they tried. Instead each
+`pck` beside it, which is tens of kilobytes. Self-contained copies would charge
+a visitor 37 MB again for the second game they tried. Instead each
 game's HTML shell points at `../engine/godot.wasm`, so whichever game is opened
 first pays for the engine and the rest start from the browser cache. The two
 audio worklets are resolved from that same path by the loader, so they live in
@@ -83,7 +105,7 @@ rebuild bytes that are already known would be slower and much easier to break.
 To refresh them:
 
 ```sh
-tools/build_site.sh              # all three
+tools/build_site.sh              # every game
 tools/build_site.sh lumen        # or just one
 ```
 
@@ -125,6 +147,7 @@ games/<name>/            a Godot 4 project, one per game
 tools/build.sh           provisions the toolchain and exports any target
 tools/build_android.sh   the Android path, including signing
 tools/build_site.sh      rebuilds every web export into docs/
+tools/run_tests.sh       provisions Godot and runs every game's smoke test
 tools/apksigner-shim/    minimal apksigner used when the Android SDK is unreachable
 tools/tessera/           Tessera's level generator, solver and music renderer
 docs/                    the built site, served by GitHub Pages
